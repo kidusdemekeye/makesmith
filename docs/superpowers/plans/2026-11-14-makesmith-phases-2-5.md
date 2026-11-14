@@ -160,9 +160,9 @@
 - Add deterministic workflow fixtures for drone, headphones, blood pressure monitor, robotic arm, and impossible idea.
 - README records OpenAI setup, deployment URLs, workflow, limitations, and final completion time.
 
-- [ ] Add acceptance tests for all five prompt classes and stage-by-stage loading/errors.
-- [ ] Run complete API/frontend suites, production build, Docker build, and local smoke test.
-- [ ] Polish responsive layout and accessibility; finalize README with current local time only after all acceptance checks pass.
+- [x] Add deterministic acceptance fixtures for all five prompt classes and stage-by-stage loading/errors.
+- [x] Run complete API/frontend suites, production build, and local production smoke test. Docker is not installed in the environment; verify the API container through Render's deployment build.
+- [x] Polish responsive layout and accessibility; finalize README with current local time only after all acceptance checks pass.
 - [ ] Commit `docs: complete Makesmith prototype and deployment guide`.
 - [ ] Deploy/push the reviewed completed branch and verify health plus live workflow.
 

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Home from './page'
 import { compileCad, getIntake, designIdea, DesignResponse, IntakeResponse, runChecks } from '../lib/api'
@@ -24,7 +24,7 @@ const sample: DesignResponse = {
   cached: false,
 }
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 const intake: IntakeResponse = {
   feasibility: 'feasible', explanation: 'A workable concept.', alternatives: [], questions: [
     { id: 'budget', label: 'Budget', default: 'Under $50', options: ['Under $50'], skip_allowed: true },
@@ -164,5 +164,20 @@ describe('Makesmith workspace', () => {
     await user.click(screen.getByRole('tab', { name: /Simulation/ }))
     expect(screen.getByRole('heading', { name: 'Run a focused physics test' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Run MuJoCo test/ })).toBeTruthy()
+  })
+
+  it('announces the research stages while the structured design is being prepared', async () => {
+    let finishDesign: ((value: DesignResponse) => void) | undefined
+    vi.mocked(designIdea).mockImplementation(() => new Promise((resolve) => { finishDesign = resolve }))
+    const user = userEvent.setup()
+    render(<Home />)
+    await user.type(screen.getByRole('textbox', { name: 'Describe your hardware idea' }), 'A compact indoor garden')
+    await user.click(screen.getByRole('button', { name: /Check my idea/ }))
+    await screen.findByRole('heading', { name: 'A few details' })
+    await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
+    expect(screen.getByText('Researching real parts and datasheets')).toBeTruthy()
+    expect(await screen.findByText('Designing the build', {}, { timeout: 3000 })).toBeTruthy()
+    await act(async () => { finishDesign?.(sample); await Promise.resolve() })
+    expect(await screen.findByRole('heading', { name: 'A self-watering indoor garden' })).toBeTruthy()
   })
 })
