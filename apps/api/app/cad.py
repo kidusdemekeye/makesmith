@@ -3,6 +3,7 @@
 import ast
 import base64
 import json
+import logging
 import math
 import multiprocessing
 import os
@@ -25,6 +26,7 @@ _CAD_COMPILE_SLOTS = threading.BoundedSemaphore(1)
 _CAD_REQUEST_SLOTS = threading.BoundedSemaphore(1)
 ALLOWED_METHODS = {"Workplane", "box", "cylinder", "sphere", "workplane", "faces", "edges", "vertices", "fillet", "chamfer", "hole", "cutBlind", "extrude", "translate", "rotate", "union", "cut", "intersect"}
 REPAIR_SCHEMA = {"type": "object", "properties": {"cadquery_code": {"type": "string"}}, "required": ["cadquery_code"], "additionalProperties": False}
+logger = logging.getLogger(__name__)
 
 
 class CadError(Exception):
@@ -182,6 +184,7 @@ def compile_cadquery_stl(source, timeout_seconds=MAX_CAD_COMPILE_SECONDS):
         child.close()
         _CAD_COMPILE_SLOTS.release()
     if not ok:
+        logger.warning("CadQuery worker failed: %s", str(result)[:500])
         message = "CadQuery could not compile the custom part. Check the shape and dimensions."
         if "No module named 'cadquery'" in result:
             raise CadError("3D compilation is not installed on this API service yet.", status_code=503)
