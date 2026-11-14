@@ -42,6 +42,11 @@ class ApiRouteTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             main.IntakeRequest(idea=" ")
 
+    def test_design_route_forwards_answers(self):
+        with patch.object(main.service, "design_with_status", return_value=({"idea": "Build a monitor"}, False)) as design:
+            main.create_design(main.DesignRequest(idea="Build a monitor", answers={"budget": "Under $50"}))
+        design.assert_called_once_with("Build a monitor", {"budget": "Under $50"})
+
 
 if __name__ == "__main__":
     unittest.main()

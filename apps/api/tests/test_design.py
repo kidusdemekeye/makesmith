@@ -60,6 +60,34 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual(payload["text"]["format"]["type"], "json_schema")
         self.assertTrue(payload["text"]["format"]["strict"])
 
+    def test_researches_with_openai_web_search_before_structured_design(self):
+        self.service.design("Build a monitor")
+        payload = self.transport.call_args.args[1]
+        self.assertEqual(payload["tools"], [{"type": "web_search"}])
+        self.assertEqual(payload["tool_choice"], "required")
+
+    def test_includes_only_cited_http_sources_and_build_artifacts(self):
+        generated = {
+            "summary": "A compact monitor", "components": [],
+            "parts": [{"name": "Sensor", "manufacturer": "Acme", "model": "M1", "specifications": ["3.3 V"], "quantity": 1, "links": ["javascript:alert(1)"], "source_urls": ["https://datasheets.example/sensor", "javascript:alert(1)"]}],
+            "connections": [], "power": {}, "dimensions": {},
+            "research": [{"title": "Sensor data sheet", "url": "https://datasheets.example/sensor", "snippet": "3.3 V"}, {"title": "Fake", "url": "javascript:alert(1)", "snippet": "fake"}],
+            "custom_parts": [], "manual": [], "assumptions": ["Runtime is estimated"],
+        }
+        citation = {"type": "url_citation", "url": "https://datasheets.example/sensor", "title": "Sensor data sheet"}
+        self.transport.return_value = {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated), "annotations": [citation]}]}]}
+        result = self.service.design("Build a monitor")
+        self.assertEqual(result["research"], [{"title": "Sensor data sheet", "url": "https://datasheets.example/sensor", "snippet": "3.3 V"}])
+        self.assertEqual(result["parts"][0]["source_urls"], ["https://datasheets.example/sensor"])
+        self.assertTrue(result["parts"][0]["search_url"].startswith("https://www.google.com/search?q="))
+        self.assertEqual(result["manual"], [])
+
+    def test_answers_are_sent_to_ai_and_partition_the_cache(self):
+        self.service.design_with_status("Build a monitor", {"budget": "Under $50", "size": "Handheld"})
+        self.assertIn("Under $50", self.transport.call_args.args[1]["input"])
+        self.service.design_with_status("Build a monitor", {"budget": "Flexible"})
+        self.assertEqual(self.transport.call_count, 2)
+
     def test_configures_a_cheaper_model_for_small_tasks(self):
         service = DesignService(api_key="test-key", transport=self.transport)
         self.assertEqual(service.small_model, "gpt-6-luna")

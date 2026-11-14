@@ -3,6 +3,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 
 from .design import DesignError, DesignService
 from .intake import IntakeError, IntakeService
@@ -20,6 +21,14 @@ intake_service = IntakeService()
 
 class DesignRequest(BaseModel):
     idea: str = Field(min_length=1, max_length=5000)
+    answers: dict[str, Optional[str]] = Field(default_factory=dict)
+
+    @field_validator("idea")
+    @classmethod
+    def design_idea_must_contain_text(cls, value):
+        if not value.strip():
+            raise ValueError("Describe your hardware idea.")
+        return value
 
 
 class IntakeRequest(BaseModel):
@@ -41,7 +50,7 @@ def health():
 @app.post("/api/design")
 def create_design(request: DesignRequest):
     try:
-        design, cached = service.design_with_status(request.idea)
+        design, cached = service.design_with_status(request.idea, request.answers)
         return {"design": design, "cached": cached}
     except DesignError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error))
