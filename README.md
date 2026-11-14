@@ -5,7 +5,7 @@ Makesmith turns a hardware idea into a researched, structured build plan. Descri
 ## Project timeline
 
 - **Project start:** 2026-11-14 04:51 CST
-- **Project end:** pending final deployment verification.
+- **Project end:** 2026-11-14 08:09 CST
 
 ## Live app
 
@@ -82,6 +82,8 @@ npm run build
 ```
 
 The repository's deterministic acceptance fixtures cover a drone, headphones, a blood pressure monitor, a robotic arm, and an impossible idea without spending tokens on live AI calls.
+
+The deployed smoke check generated a headphone design, compiled its custom cable dish to STL, and returned five engineering checks. That response lacked verified citation annotations, so Makesmith marked its parts unverified. The live Vercel page and MuJoCo WASM asset also returned successfully.
 
 ## Deployment configuration
 

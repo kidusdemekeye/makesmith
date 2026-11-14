@@ -44,11 +44,11 @@
 - Produces `POST /api/intake` accepting `{idea}` and returning `{feasibility, explanation, alternatives, questions}`. Four questions have stable IDs `budget`, `size`, `purpose`, `skill_level`, each with `default` and `options`.
 - The response is typed/validated; alternatives are empty unless infeasible, then contain 2–3 ideas.
 
-- [ ] Write tests for defaults, safe impossible ideas, unsafe ideas, malformed model output, and API validation.
-- [ ] Run `pytest apps/api/tests/test_intake.py apps/api/tests/test_api.py -q`; expected: missing endpoint/function failures.
-- [ ] Implement cached small-model OpenAI intake with a strict schema and request validation.
-- [ ] Re-run targeted tests and full API suite; expected: all pass.
-- [ ] Commit `feat: add idea intake and feasibility checks`.
+- [x] Write tests for defaults, safe impossible ideas, unsafe ideas, malformed model output, and API validation.
+- [x] Run `pytest apps/api/tests/test_intake.py apps/api/tests/test_api.py -q`; expected: missing endpoint/function failures.
+- [x] Implement cached small-model OpenAI intake with a strict schema and request validation.
+- [x] Re-run targeted tests and full API suite; expected: all pass.
+- [x] Commit `feat: add idea intake and feasibility checks`.
 
 ### Task 2: Web-researched structured design
 
@@ -61,11 +61,11 @@
 - `Design` adds `research`, `custom_parts`, `manual`, and `assumptions`; retain existing components/parts/connections/power/dimensions.
 - Each part carries exact name/specification, quantity, search URL, and source URLs; each citation is HTTP(S).
 
-- [ ] Add tests proving the output schema, answers in cache key, research citations, strict missing-field rejection, and no unsafe design generation.
-- [ ] Run `pytest apps/api/tests/test_design.py apps/api/tests/test_api.py -q`; expected: failures for new contract.
-- [ ] Use OpenAI Responses API built-in `web_search` with required tool choice and structured output; cache by normalized idea+answers; normalize search links.
-- [ ] Re-run targeted and full API tests; expected: all pass.
-- [ ] Commit `feat: research and return complete hardware designs`.
+- [x] Add tests proving the output schema, answers in cache key, research citations, strict missing-field rejection, and no unsafe design generation.
+- [x] Run `pytest apps/api/tests/test_design.py apps/api/tests/test_api.py -q`; expected: failures for new contract.
+- [x] Use OpenAI Responses API built-in `web_search` with required tool choice and structured output; cache by normalized idea+answers; normalize search links.
+- [x] Re-run targeted and full API tests; expected: all pass.
+- [x] Commit `feat: research and return complete hardware designs`.
 
 ### Task 3: End-to-end intake and progressive frontend
 
@@ -77,11 +77,11 @@
 - `getIntake(idea)` and `designIdea(idea, answers)` reflect the backend contracts.
 - UI state order is idea → questions/alternatives → research/design progress → result tabs; one `Design` powers every tab.
 
-- [ ] Add tests for intake defaults, answer editing/skipping, selecting an alternative, progressive status, retained idea on error, and result data from the single design.
-- [ ] Run targeted Vitest tests; expected: missing flow/API behavior failures.
-- [ ] Implement accessible responsive flow, stage progress and result tabs.
-- [ ] Run full frontend suite and production build; expected: pass.
-- [ ] Commit `feat: guide users from idea to researched design`.
+- [x] Add tests for intake defaults, answer editing/skipping, selecting an alternative, progressive status, retained idea on error, and result data from the single design.
+- [x] Run targeted Vitest tests; expected: missing flow/API behavior failures.
+- [x] Implement accessible responsive flow, stage progress and result tabs.
+- [x] Run full frontend suite and production build; expected: pass.
+- [x] Commit `feat: guide users from idea to researched design`.
 
 ### Task 4: CAD generation, bounded compilation, and 3D viewer
 
@@ -96,11 +96,11 @@
 - CAD compiler accepts only bounded CadQuery code, runs in a resource-limited child process, and retries generation/repair at most three times.
 - `ModelViewer` takes mesh URLs plus assembly transforms and renders parts/assembly.
 
-- [ ] Test allowed CAD, invalid code, denied imports/builtins, timeout, compile failure/retry limit, and assembly output.
-- [ ] Run `pytest apps/api/tests/test_cad.py -q`; expected: missing module/endpoint failures.
-- [ ] Implement isolated compile and retry lifecycle. If safe isolation is not viable on Render, return a clear unavailable message and continue to Phase 5; never execute unrestricted AI code in-process.
-- [ ] Test ModelViewer empty state and renders mesh/assembly; run frontend suite/build.
-- [ ] Commit `feat: generate and preview custom cad parts`.
+- [x] Test allowed CAD, invalid code, denied imports/builtins, timeout, compile failure/retry limit, and assembly output.
+- [x] Run `pytest apps/api/tests/test_cad.py -q`; expected: missing module/endpoint failures.
+- [x] Implement isolated compile and retry lifecycle. If safe isolation is not viable on Render, return a clear unavailable message and continue to Phase 5; never execute unrestricted AI code in-process.
+- [x] Test ModelViewer empty state and renders mesh/assembly; run frontend suite/build.
+- [x] Commit `feat: generate and preview custom cad parts`.
 
 ### Task 5: Parts and build manual
 
@@ -112,11 +112,11 @@
 - Parts and manual components consume `Design` only, never regenerate/reinvent facts.
 - Manual steps expose number/title, part names, tools, action, reason, common mistakes.
 
-- [ ] Test source/search links, no price field, quantities, ordered steps, empty states, and printable layout.
-- [ ] Run focused Vitest tests; expected: component missing failures.
-- [ ] Implement parts/manual views and browser print-to-PDF affordance (omit generated PDF artifact if schedule requires).
-- [ ] Run frontend suite/build; expected: pass.
-- [ ] Commit `feat: show sourced parts and build instructions`.
+- [x] Test source/search links, no price field, quantities, ordered steps, empty states, and printable layout.
+- [x] Run focused Vitest tests; expected: component missing failures.
+- [x] Implement parts/manual views and browser print-to-PDF affordance (omit generated PDF artifact if schedule requires).
+- [x] Run frontend suite/build; expected: pass.
+- [x] Commit `feat: show sourced parts and build instructions`.
 
 ### Task 6: Deterministic engineering checks
 
@@ -129,11 +129,11 @@
 - `POST /api/checks` accepts `Design`; returns named checks with `status` (`pass`, `warning`, `unknown`), result, assumptions, and reason.
 - Compute power budget, battery life, total weight, fit, and basic strength only when required numeric data exists.
 
-- [ ] Test known power/runtime/weight arithmetic, fit/strength unknowns, inconsistent data warnings, and invalid input.
-- [ ] Run `pytest apps/api/tests/test_checks.py -q`; expected: missing endpoint/function failures.
-- [ ] Implement deterministic calculations with units and explicit unknown output.
-- [ ] Test UI status and assumptions; run API/frontend suites.
-- [ ] Commit `feat: calculate transparent engineering checks`.
+- [x] Test known power/runtime/weight arithmetic, fit/strength unknowns, inconsistent data warnings, and invalid input.
+- [x] Run `pytest apps/api/tests/test_checks.py -q`; expected: missing endpoint/function failures.
+- [x] Implement deterministic calculations with units and explicit unknown output.
+- [x] Test UI status and assumptions; run API/frontend suites.
+- [x] Commit `feat: calculate transparent engineering checks`.
 
 ### Task 7: Browser MuJoCo simulation
 
@@ -163,8 +163,8 @@
 - [x] Add deterministic acceptance fixtures for all five prompt classes and stage-by-stage loading/errors.
 - [x] Run complete API/frontend suites, production build, and local production smoke test. Docker is not installed in the environment; verify the API container through Render's deployment build.
 - [x] Polish responsive layout and accessibility; finalize README with current local time only after all acceptance checks pass.
-- [ ] Commit `docs: complete Makesmith prototype and deployment guide`.
-- [ ] Deploy/push the reviewed completed branch and verify health plus live workflow.
+- [x] Commit `docs: complete Makesmith prototype and deployment guide`.
+- [x] Deploy/push the reviewed completed branch and verify health plus live workflow.
 
 ## Completion
 
