@@ -79,7 +79,10 @@ DESIGN_SCHEMA = {
 
 
 class DesignError(Exception):
-    """Safe, user-facing design generation failure."""
+    """Safe, user-facing design generation failure with an HTTP status."""
+    def __init__(self, message, status_code=502):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class DesignService:
@@ -97,13 +100,13 @@ class DesignService:
     def design_with_status(self, idea):
         idea = idea.strip() if isinstance(idea, str) else ""
         if not idea:
-            raise DesignError("Describe your hardware idea before generating a design.")
+            raise DesignError("Describe your hardware idea before generating a design.", status_code=422)
         if len(idea) > MAX_IDEA_CHARS:
-            raise DesignError("Keep the idea under 5,000 characters.")
+            raise DesignError("Keep the idea under 5,000 characters.", status_code=422)
         if idea in self.cache:
             return self.cache[idea], True
         if not self.api_key:
-            raise DesignError("AI design is unavailable. Set OPENAI_API_KEY on the API service.")
+            raise DesignError("AI design is unavailable. Set OPENAI_API_KEY on the API service.", status_code=503)
 
         payload = {
             "model": self.model,

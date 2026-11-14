@@ -24,7 +24,7 @@ class ApiRouteTests(unittest.TestCase):
         with patch.object(main.service, "design_with_status", side_effect=DesignError("OpenAI unavailable")):
             with self.assertRaises(HTTPException) as error:
                 main.create_design(main.DesignRequest(idea="Build a monitor"))
-        self.assertEqual(error.exception.status_code, 400)
+        self.assertEqual(error.exception.status_code, 502)
         self.assertEqual(error.exception.detail, "OpenAI unavailable")
 
     def test_design_request_rejects_empty_or_oversized_input(self):

@@ -31,4 +31,4 @@ def create_design(request: DesignRequest):
         design, cached = service.design_with_status(request.idea)
         return {"design": design, "cached": cached}
     except DesignError as error:
-        raise HTTPException(status_code=400, detail=str(error))
+        raise HTTPException(status_code=error.status_code, detail=str(error))
