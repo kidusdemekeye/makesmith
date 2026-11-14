@@ -39,6 +39,18 @@ class IntakeServiceTests(unittest.TestCase):
         with self.assertRaises(IntakeError):
             self.service.intake("Build a planter")
         self.assertEqual(self.service.cache, {})
+        self.assertEqual(self.transport.call_count, 2)
+
+    def test_retries_one_unreadable_response_then_returns_valid_feasibility(self):
+        malformed = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "not json"}]}]}
+        valid = {"output": [{"type": "message", "content": [{
+            "type": "output_text",
+            "text": json.dumps({"feasibility": "feasible", "explanation": "A workable concept.", "alternatives": []}),
+        }]}]}
+        self.transport.side_effect = [malformed, valid]
+        result = self.service.intake("Build a small robotic arm")
+        self.assertEqual(result["feasibility"], "feasible")
+        self.assertEqual(self.transport.call_count, 2)
 
     def test_rejects_blank_and_oversized_ideas(self):
         with self.assertRaises(IntakeError) as error:

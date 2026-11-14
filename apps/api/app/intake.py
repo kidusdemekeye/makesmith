@@ -67,16 +67,22 @@ class IntakeService:
             "text": {"format": {"type": "json_schema", "name": "makesmith_intake", "strict": True, "schema": INTAKE_SCHEMA}},
         }
         try:
-            response = self.transport(self.api_key, payload)
-            content = "".join(
-                part.get("text", "")
-                for item in response.get("output", []) if item.get("type") == "message"
-                for part in item.get("content", []) if part.get("type") == "output_text"
-            )
-            generated = json.loads(content)
-            result = self._normalize(generated)
-        except (ValueError, TypeError, KeyError, AttributeError):
-            raise IntakeError("OpenAI returned an unreadable feasibility check. Please try again.")
+            for attempt in range(2):
+                response = self.transport(self.api_key, payload)
+                try:
+                    content = "".join(
+                        part.get("text", "")
+                        for item in response.get("output", []) if item.get("type") == "message"
+                        for part in item.get("content", []) if part.get("type") == "output_text"
+                    )
+                    generated = json.loads(content)
+                    result = self._normalize(generated)
+                    break
+                except (ValueError, TypeError, KeyError, AttributeError):
+                    if attempt == 1:
+                        raise IntakeError("OpenAI returned an unreadable feasibility check. Please try again.")
+        except IntakeError:
+            raise
         except Exception:
             raise IntakeError("OpenAI intake could not be completed. Check the API configuration and try again.")
         result["questions"] = [dict(question) for question in QUESTION_DEFAULTS]
