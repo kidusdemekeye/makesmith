@@ -33,6 +33,15 @@ class ApiRouteTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             main.DesignRequest(idea="x" * 5001)
 
+    def test_intake_endpoint_returns_questions_and_feasibility(self):
+        expected = {"feasibility": "feasible", "explanation": "Workable", "alternatives": [], "questions": []}
+        with patch.object(main.intake_service, "intake", return_value=expected):
+            self.assertEqual(main.create_intake(main.IntakeRequest(idea="Build a monitor")), expected)
+
+    def test_intake_endpoint_rejects_blank_idea(self):
+        with self.assertRaises(ValidationError):
+            main.IntakeRequest(idea=" ")
+
 
 if __name__ == "__main__":
     unittest.main()
