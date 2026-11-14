@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { designIdea } from './api'
+import { designIdea, getIntake } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -9,11 +9,11 @@ describe('designIdea', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response })
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(designIdea('Headphones')).resolves.toEqual(response)
+    await expect(designIdea('Headphones', { budget: 'Under $50' })).resolves.toEqual(response)
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/design', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idea: 'Headphones' }),
+      body: JSON.stringify({ idea: 'Headphones', answers: { budget: 'Under $50' } }),
     })
   })
 
@@ -36,5 +36,17 @@ describe('designIdea', () => {
   it('reports a helpful error for an unreadable response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => { throw new Error('bad json') } }))
     await expect(designIdea('Headphones')).rejects.toThrow('Could not generate a design. Try again.')
+  })
+})
+
+describe('getIntake', () => {
+  it('posts the idea and returns feasibility and defaulted questions', async () => {
+    const response = { feasibility: 'feasible', explanation: 'Workable', alternatives: [], questions: [] }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(getIntake('Headphones')).resolves.toEqual(response)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/intake', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idea: 'Headphones' }),
+    })
   })
 })
