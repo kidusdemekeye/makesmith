@@ -47,6 +47,12 @@ class ApiRouteTests(unittest.TestCase):
             main.create_design(main.DesignRequest(idea="Build a monitor", answers={"budget": "Under $50"}))
         design.assert_called_once_with("Build a monitor", {"budget": "Under $50"})
 
+    def test_cad_route_compiles_structured_design(self):
+        expected = {"models": [{"name": "Bracket"}], "assembly": ["Bracket"]}
+        with patch.object(main.cad_service, "compile_design", return_value=expected) as compile_design:
+            self.assertEqual(main.create_cad(main.CadRequest(design={"custom_parts": []})), expected)
+        compile_design.assert_called_once_with({"custom_parts": []})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,11 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { Answers, getIntake, IntakeResponse, designIdea, DesignResponse } from '../lib/api'
+import { Answers, compileCad, getIntake, IntakeResponse, designIdea, DesignResponse, CadResponse } from '../lib/api'
 import { RESULT_TABS, ResultTabId } from '../lib/tabs'
+import ModelViewer from '../components/ModelViewer'
+import PartsList from '../components/PartsList'
+import BuildManual from '../components/BuildManual'
 
 const PLACEHOLDERS: Record<Exclude<ResultTabId, 'design'>, { eyebrow: string; title: string; description: string }> = {
   parts: { eyebrow: 'NEXT IN THE WORKFLOW', title: 'Parts grounded in real sources', description: 'Exact components, specifications, and search links will be collected here after research is added.' },
@@ -21,6 +24,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<ResultTabId>('design')
   const [result, setResult] = useState<DesignResponse | null>(null)
   const [intake, setIntake] = useState<IntakeResponse | null>(null)
+  const [cadResult, setCadResult] = useState<CadResponse | null>(null)
+  const [cadLoading, setCadLoading] = useState(false)
+  const [cadError, setCadError] = useState('')
   const [answers, setAnswers] = useState<Answers>({})
   const [loading, setLoading] = useState(false)
   const [generationStage, setGenerationStage] = useState('')
@@ -84,6 +90,19 @@ export default function Home() {
     setIdea(alternative)
     setActiveTab('design')
     await checkIdea(alternative)
+  }
+
+  async function generateCad() {
+    if (!design) return
+    setCadLoading(true)
+    setCadError('')
+    try {
+      setCadResult(await compileCad(design))
+    } catch (caught) {
+      setCadError(caught instanceof Error ? caught.message : 'Could not compile custom parts. Try again.')
+    } finally {
+      setCadLoading(false)
+    }
   }
 
   const design = result?.design
@@ -154,7 +173,7 @@ export default function Home() {
             {RESULT_TABS.map((tab) => <button className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`} id={`tab-${tab.id}`} key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls="tab-panel" onClick={() => setActiveTab(tab.id)}><span className="tab-number">{tab.number}</span>{tab.label}</button>)}
           </div>
           <section className="tab-panel" id="tab-panel" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
-            {activeTab === 'design' ? design ? (
+            {activeTab === 'design' ? (design ? (
               <div className="design-content">
                 <div className="design-title-row"><div><div className="eyebrow"><span>DESIGN OVERVIEW</span></div><h3>{design.summary || design.idea}</h3></div><span className="concept-badge">FIRST PASS</span></div>
                 <p className="idea-echo">Based on: “{design.idea}”</p>
@@ -180,6 +199,18 @@ export default function Home() {
               </div>
             ) : (
               <div className="empty-workspace"><div className="empty-art" aria-hidden="true"><span className="empty-shape shape-large" /><span className="empty-shape shape-small" /><span className="empty-spark">✳</span></div><div className="eyebrow"><span>READY WHEN YOU ARE</span></div><h3>Your idea starts here.</h3><p>Describe the hardware you have in mind, and your first design will land in this workspace.</p></div>
+            )) : activeTab === 'parts' && design ? (
+              <PartsList parts={design.parts} research={design.research} />
+            ) : activeTab === 'manual' && design ? (
+              <BuildManual steps={design.manual} />
+            ) : activeTab === 'files' && design ? (
+              <div className="files-content">
+                <div className="design-title-row"><div><div className="eyebrow"><span>CUSTOM GEOMETRY</span></div><h3>Printable parts for this design</h3></div><button className="primary-button" type="button" onClick={() => void generateCad()} disabled={cadLoading}>{cadLoading ? <><span className="spinner" /> Compiling…</> : <>Compile custom parts <span aria-hidden="true">↗</span></>}</button></div>
+                <p>CadQuery runs with a restricted set of geometry operations. Failed parts can be repaired up to three times.</p>
+                {cadError && <p className="error-message" role="alert">{cadError}</p>}
+                {cadResult && !cadResult.models.length && <p className="empty-detail">This design has no custom printable parts. Its purchased parts are listed in the Parts tab.</p>}
+                <ModelViewer models={cadResult?.models ?? []} />
+              </div>
             ) : (
               <div className="placeholder-workspace"><div className="placeholder-art" aria-hidden="true"><span className="placeholder-ring" /><span className="placeholder-center">{RESULT_TABS.find((tab) => tab.id === activeTab)?.number}</span></div><div className="placeholder-copy"><div className="eyebrow"><span>{PLACEHOLDERS[activeTab].eyebrow}</span></div><h3>{PLACEHOLDERS[activeTab].title}</h3><p>{PLACEHOLDERS[activeTab].description}</p><span className="coming-note"><span className="status-dot" /> WORKSPACE READY TO GROW</span></div></div>
             )}

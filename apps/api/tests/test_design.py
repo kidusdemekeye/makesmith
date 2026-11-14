@@ -66,6 +66,13 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual(payload["tools"], [{"type": "web_search"}])
         self.assertEqual(payload["tool_choice"], "required")
 
+    def test_prompts_for_cadquery_code_with_the_compilers_restricted_shape_grammar(self):
+        self.service.design("Build a monitor")
+        prompt = self.transport.call_args.args[1]["instructions"]
+        self.assertIn("exactly two Python statements", prompt)
+        self.assertIn("cq.Workplane", prompt)
+        self.assertIn("literal numeric or short string arguments only", prompt)
+
     def test_includes_only_cited_http_sources_and_build_artifacts(self):
         generated = {
             "summary": "A compact monitor", "components": [],

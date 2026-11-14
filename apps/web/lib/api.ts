@@ -25,6 +25,8 @@ export type DesignResponse = { design: DesignResult; cached: boolean }
 export type Answers = Partial<Record<'budget' | 'size' | 'purpose' | 'skill_level', string>>
 export type IntakeQuestion = { id: keyof Answers; label: string; default: string; options: string[]; skip_allowed: boolean }
 export type IntakeResponse = { feasibility: 'feasible' | 'needs_clarification' | 'impossible' | 'unsafe'; explanation: string; alternatives: string[]; questions: IntakeQuestion[] }
+export type CadModel = { name: string; purpose: string; dimensions: string; stl_base64: string }
+export type CadResponse = { models: CadModel[]; assembly: string[] }
 
 function apiBaseUrl() {
   const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '')
@@ -77,3 +79,13 @@ export async function getIntake(idea: string): Promise<IntakeResponse> {
   }
   return payload as IntakeResponse
 }
+
+
+export async function compileCad(design: DesignResult): Promise<CadResponse> {
+  const payload = await request<unknown>('/api/cad', { design }, 'Could not compile custom parts. Try again.')
+  if (!payload || typeof payload !== 'object' || !('models' in payload) || !Array.isArray(payload.models) || !('assembly' in payload) || !Array.isArray(payload.assembly)) {
+    throw new Error('The CAD service returned an unexpected response. Please try again.')
+  }
+  return payload as CadResponse
+}
+

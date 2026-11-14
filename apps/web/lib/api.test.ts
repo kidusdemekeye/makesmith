@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { designIdea, getIntake } from './api'
+import { compileCad, designIdea, getIntake } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -47,6 +47,19 @@ describe('getIntake', () => {
     await expect(getIntake('Headphones')).resolves.toEqual(response)
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/intake', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idea: 'Headphones' }),
+    })
+  })
+})
+
+describe('compileCad', () => {
+  it('sends the structured design to the CAD endpoint', async () => {
+    const design = { idea: 'Headphones', custom_parts: [], parts: [] } as never
+    const response = { models: [], assembly: [] }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(compileCad(design)).resolves.toEqual(response)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/cad', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ design }),
     })
   })
 })

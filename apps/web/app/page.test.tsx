@@ -3,20 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Home from './page'
-import { getIntake, designIdea, DesignResponse, IntakeResponse } from '../lib/api'
+import { compileCad, getIntake, designIdea, DesignResponse, IntakeResponse } from '../lib/api'
 
-vi.mock('../lib/api', () => ({ getIntake: vi.fn(), designIdea: vi.fn() }))
+vi.mock('../lib/api', () => ({ compileCad: vi.fn(), getIntake: vi.fn(), designIdea: vi.fn() }))
 
 const sample: DesignResponse = {
   design: {
     idea: 'A compact indoor garden',
     summary: 'A self-watering indoor garden',
     components: [{ name: 'Moisture sensor', purpose: 'Detects dry soil' }],
-    parts: [{ name: 'Moisture probe', manufacturer: 'Fieldworks', model: 'FP-1', specifications: ['Capacitive'], quantity: 1, links: [], search_url: 'https://www.google.com/search?q=Moisture%20probe', source_urls: [] }],
+    parts: [{ name: 'Moisture probe', manufacturer: 'Fieldworks', model: 'FP-1', specifications: ['Capacitive'], quantity: 1, links: [], search_url: 'https://www.google.com/search?q=Moisture%20probe', source_urls: ['https://example.com/probe'] }],
     connections: [],
     power: { source: '', voltage: '', current: '', capacity: '', estimated_runtime: '' },
     dimensions: { width: '', height: '', depth: '', units: '' },
-    research: [], custom_parts: [], manual: [], assumptions: [],
+    research: [{ title: 'Probe datasheet', url: 'https://example.com/probe', snippet: 'Capacitive sensor datasheet.' }], custom_parts: [], manual: [{ number: 1, title: 'Mount the probe', parts: ['Moisture probe'], tools: ['Small screwdriver'], action: 'Secure the probe above the soil.', reason: 'This keeps the electronics dry.', mistakes: ['Do not bury the circuit board.'] }], assumptions: [],
   },
   cached: false,
 }
@@ -33,6 +33,7 @@ const intake: IntakeResponse = {
 beforeEach(() => {
   vi.mocked(getIntake).mockReset().mockResolvedValue(intake)
   vi.mocked(designIdea).mockReset()
+  vi.mocked(compileCad).mockReset()
 })
 
 describe('Makesmith workspace', () => {
@@ -93,5 +94,39 @@ describe('Makesmith workspace', () => {
     await user.click(screen.getByRole('button', { name: /Check my idea/ }))
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('OpenAI is unavailable.'))
     expect(ideaBox).toHaveProperty('value', 'A wearable monitor')
+  })
+
+  it('compiles the structured design and shows the part viewer', async () => {
+    const user = userEvent.setup()
+    vi.mocked(designIdea).mockResolvedValue(sample)
+    vi.mocked(compileCad).mockResolvedValue({ models: [{ name: 'Mount', purpose: 'Hold the board', dimensions: '20 x 10 mm', stl_base64: 'U1RM' }], assembly: ['Mount'] })
+    render(<Home />)
+    await user.type(screen.getByRole('textbox', { name: 'Describe your hardware idea' }), 'A compact indoor garden')
+    await user.click(screen.getByRole('button', { name: /Check my idea/ }))
+    await screen.findByRole('heading', { name: 'A few details' })
+    await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
+    await screen.findByRole('heading', { name: 'A self-watering indoor garden' })
+    await user.click(screen.getByRole('tab', { name: /3D Files/ }))
+    await user.click(screen.getByRole('button', { name: /Compile custom parts/ }))
+    expect(await screen.findByRole('heading', { name: 'Assembly parts' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Download STL' })).toBeTruthy()
+    expect(compileCad).toHaveBeenCalledWith(sample.design)
+  })
+
+  it('uses the same structured design for parts and manual tabs', async () => {
+    const user = userEvent.setup()
+    vi.mocked(designIdea).mockResolvedValue(sample)
+    render(<Home />)
+    await user.type(screen.getByRole('textbox', { name: 'Describe your hardware idea' }), 'A compact indoor garden')
+    await user.click(screen.getByRole('button', { name: /Check my idea/ }))
+    await screen.findByRole('heading', { name: 'A few details' })
+    await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
+    await screen.findByRole('heading', { name: 'A self-watering indoor garden' })
+    await user.click(screen.getByRole('tab', { name: /Parts/ }))
+    expect(screen.getByRole('heading', { name: 'Moisture probe' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Probe datasheet/ })).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: /Manual/ }))
+    expect(screen.getByRole('heading', { name: '1. Mount the probe' })).toBeTruthy()
+    expect(screen.getByText('Do not bury the circuit board.')).toBeTruthy()
   })
 })
