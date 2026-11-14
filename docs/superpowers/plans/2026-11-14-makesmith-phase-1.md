@@ -35,7 +35,8 @@
 - `apps/web/app/page.tsx`, `apps/web/app/globals.css`: idea form, progress/error states, result navigation and content.
 - `apps/web/app/layout.tsx`: app metadata and global shell.
 - `apps/web/lib/api.ts`, `apps/web/lib/tabs.ts`: typed API contract and tab definitions.
-- `apps/web/package.json`, `apps/web/tsconfig.json`, `apps/web/next.config.ts`, `apps/web/vercel.json`: frontend runtime/deploy configuration.
+- `apps/web/package.json`, `apps/web/package-lock.json`, `apps/web/tsconfig.json`, `apps/web/next.config.ts`, `apps/web/vercel.json`: frontend runtime/deploy configuration.
+- `apps/web/app/page.test.tsx`, `apps/web/lib/api.test.ts`, `apps/web/lib/tabs.test.ts`: frontend interaction, API client, and tab tests.
 - `README.md`: setup, environment, architecture, response caching, project start timestamp.
 - `docs/superpowers/plans/2026-11-14-makesmith-phase-1.md`: this plan.
 
@@ -71,13 +72,17 @@
 - Create: `apps/web/app/globals.css`
 - Create: `apps/web/lib/api.ts`
 - Create: `apps/web/lib/tabs.ts`
+- Test: `apps/web/app/page.test.tsx`
+- Test: `apps/web/lib/api.test.ts`
+- Test: `apps/web/lib/tabs.test.ts`
 - Create: `apps/web/package.json`
+- Create: `apps/web/package-lock.json`
 - Create: `apps/web/tsconfig.json`
 - Create: `apps/web/next.config.ts`
 - Create: `apps/web/vercel.json`
 
 **Interfaces:**
-- `designIdea(idea: string): Promise<DesignResult>` posts to `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
+- `designIdea(idea: string): Promise<DesignResponse>` posts to `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
 - The app has an idea text field and submit action, plus Design, Parts, Manual, 3D Files, Checks, Simulation tabs.
 - Design renders normalized response fields. Other tabs show concise, accurate Phase 1 readiness states; no fake generated outputs.
 - Loading, blank-input, and API-error states are visible and accessible.
