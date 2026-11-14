@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { CadModel } from '../lib/api'
+import { applyAssemblyTransform } from '../lib/model-transform'
 
 type Mode = 'assembly' | 'part'
 
@@ -50,7 +51,9 @@ export default function ModelViewer({ models }: { models: CadModel[] }) {
           const geometry = loader.parse(bytes.buffer)
           geometry.computeVertexNormals()
           const material = new THREE.MeshStandardMaterial({ color: ['#b36a42', '#627e73', '#65788b', '#c59c54'][index % 4], metalness: 0.12, roughness: 0.62 })
-          group.add(new THREE.Mesh(geometry, material))
+          const mesh = new THREE.Mesh(geometry, material)
+          if (mode === 'assembly') applyAssemblyTransform(mesh, visibleModels[index])
+          group.add(mesh)
         }
         scene.add(group)
         group.updateMatrixWorld(true)

@@ -16,4 +16,10 @@ describe('PartsList', () => {
     expect(screen.getByRole('link', { name: 'BME280 datasheet' }).getAttribute('href')).toBe('https://example.com/datasheet')
     expect(screen.queryByText(/\$\d/)).toBeNull()
   })
+
+  it('marks parts without citations as unverified', () => {
+    render(<PartsList parts={[{ name: 'Candidate sensor', manufacturer: 'Example', model: 'X1', specifications: ['3.3 V rating'], quantity: 1, links: [], search_url: 'https://www.google.com/search?q=Candidate', source_urls: [] }]} research={[]} />)
+    expect(screen.getAllByText(/No verified citation was returned/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Treat specifications as unverified/).length).toBeGreaterThan(0)
+  })
 })

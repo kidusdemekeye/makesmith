@@ -105,5 +105,6 @@ The public GitHub repository is `kidusdemekeye/makesmith`; `main` is connected t
 - No user accounts, saved projects, live pricing, or camera-based build checking.
 - Parts and research depend on the current search response and cited sources; verify availability and compatibility.
 - CAD output is limited to the supported CadQuery operations and per-process resource bounds.
+- The CAD worker requires an operating system that can enforce its memory limits; use the Linux Render/Railway API for STL compilation. On macOS, the API fails closed if those limits cannot be applied.
 - Engineering checks use only numeric inputs in the structured design. They do not replace a full electrical, structural, or regulatory review.
 - Simulation runs a small project-specific MJCF test in the browser. Unsupported or missing models remain explicitly unavailable; the score summarizes the stated test only.

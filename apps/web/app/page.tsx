@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Answers, compileCad, getIntake, IntakeResponse, designIdea, DesignResponse, CadResponse, runChecks, ChecksResponse } from '../lib/api'
 import { RESULT_TABS, ResultTabId } from '../lib/tabs'
 import ModelViewer from '../components/ModelViewer'
@@ -36,6 +36,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [generationStage, setGenerationStage] = useState('')
   const [error, setError] = useState('')
+  const designGeneration = useRef(0)
 
   useEffect(() => {
     if (!loading) return
@@ -49,11 +50,15 @@ export default function Home() {
   }, [loading])
 
   async function checkIdea(candidate: string) {
+    designGeneration.current += 1
     setLoading(true)
     setError('')
     setResult(null)
     setChecksResult(null)
     setIntake(null)
+    setCadResult(null)
+    setCadError('')
+    setChecksError('')
     try {
       const checked = await getIntake(candidate)
       setIntake(checked)
@@ -78,10 +83,14 @@ export default function Home() {
   async function createDesign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const candidate = idea.trim()
+    designGeneration.current += 1
     setLoading(true)
     setError('')
     setGenerationStage('Researching real parts and datasheets')
     setChecksResult(null)
+    setChecksError('')
+    setCadResult(null)
+    setCadError('')
     setActiveTab('design')
     try {
       setResult(await designIdea(candidate, answers))
@@ -101,12 +110,14 @@ export default function Home() {
 
   async function generateCad() {
     if (!design) return
+    const generation = designGeneration.current
     setCadLoading(true)
     setCadError('')
     try {
-      setCadResult(await compileCad(design))
+      const compiled = await compileCad(design)
+      if (designGeneration.current === generation) setCadResult(compiled)
     } catch (caught) {
-      setCadError(caught instanceof Error ? caught.message : 'Could not compile custom parts. Try again.')
+      if (designGeneration.current === generation) setCadError(caught instanceof Error ? caught.message : 'Could not compile custom parts. Try again.')
     } finally {
       setCadLoading(false)
     }
@@ -159,7 +170,7 @@ export default function Home() {
         </div>
         <form className="idea-form" onSubmit={handleSubmit}>
           <label htmlFor="idea" className="sr-only">Describe your hardware idea</label>
-          <textarea id="idea" name="idea" value={idea} onChange={(event) => { setIdea(event.target.value); setIntake(null); setResult(null); setError('') }} placeholder="A compact indoor garden that waters itself when the soil gets dry..." maxLength={5000} rows={3} aria-describedby="idea-hint" disabled={loading} />
+          <textarea id="idea" name="idea" value={idea} onChange={(event) => { designGeneration.current += 1; setIdea(event.target.value); setIntake(null); setResult(null); setCadResult(null); setCadError(''); setChecksResult(null); setChecksError(''); setError('') }} placeholder="A compact indoor garden that waters itself when the soil gets dry..." maxLength={5000} rows={3} aria-describedby="idea-hint" disabled={loading} />
           <div className="form-footer">
             <span id="idea-hint" className="form-hint">Start broad. You can refine the details as you go.</span>
             <div className="submit-row"><span className="character-count">{idea.length.toLocaleString()} / 5,000</span>

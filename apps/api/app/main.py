@@ -62,8 +62,15 @@ def health():
 @app.post("/api/design")
 def create_design(request: DesignRequest):
     try:
+        intake = intake_service.intake(request.idea)
+        if intake["feasibility"] == "unsafe":
+            raise HTTPException(status_code=422, detail=intake["explanation"])
+        if intake["feasibility"] == "impossible":
+            raise HTTPException(status_code=422, detail="This idea was marked physically impossible. Choose one of the alternatives from the feasibility check.")
         design, cached = service.design_with_status(request.idea, request.answers)
         return {"design": design, "cached": cached}
+    except IntakeError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error))
     except DesignError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error))
 

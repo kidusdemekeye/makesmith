@@ -6,12 +6,22 @@ import json
 import math
 import multiprocessing
 import os
+import sys
 import tempfile
+import threading
+import time
 import urllib.error
 import urllib.request
 
 MAX_CODE_CHARS = 12000
 MAX_CUSTOM_PARTS = 12
+MAX_CAD_OPERATIONS = 40
+MAX_CAD_AST_NODES = 1000
+MAX_WORKER_MEMORY_BYTES = 2 * 1024 * 1024 * 1024
+MAX_WORKER_DATA_BYTES = 2 * 1024 * 1024 * 1024
+MAX_DESIGN_CAD_SECONDS = 45
+_CAD_COMPILE_SLOTS = threading.BoundedSemaphore(1)
+_CAD_REQUEST_SLOTS = threading.BoundedSemaphore(1)
 ALLOWED_METHODS = {"Workplane", "box", "cylinder", "sphere", "workplane", "faces", "edges", "vertices", "fillet", "chamfer", "hole", "cutBlind", "extrude", "translate", "rotate", "union", "cut", "intersect"}
 REPAIR_SCHEMA = {"type": "object", "properties": {"cadquery_code": {"type": "string"}}, "required": ["cadquery_code"], "additionalProperties": False}
 
@@ -31,6 +41,15 @@ def validate_cadquery_code(source):
         raise CadError("CadQuery code has a syntax error.")
     if len(module.body) != 2:
         raise CadError("Use one CadQuery import and one result assignment only.")
+    nodes = list(ast.walk(module))
+    if len(nodes) > MAX_CAD_AST_NODES or sum(isinstance(node, ast.Call) for node in nodes) > MAX_CAD_OPERATIONS:
+        raise CadError("This part exceeds the supported geometry complexity limit.")
+    stack = [(module, 0)]
+    while stack:
+        node, depth = stack.pop()
+        if depth > 80:
+            raise CadError("This part exceeds the supported expression depth limit.")
+        stack.extend((child, depth + 1) for child in ast.iter_child_nodes(node))
     imported, assignment = module.body
     if not isinstance(imported, ast.Import) or len(imported.names) != 1 or imported.names[0].name != "cadquery" or imported.names[0].asname != "cq":
         raise CadError("Only `import cadquery as cq` is permitted.")
@@ -87,6 +106,12 @@ def _literal(node):
     raise CadError("Unsupported CadQuery argument.")
 
 
+def _placement_vector(value, field, maximum):
+    if not isinstance(value, list) or len(value) != 3 or any(isinstance(item, bool) or not isinstance(item, (int, float)) or not math.isfinite(item) or abs(item) > maximum for item in value):
+        raise CadError("Each custom part needs a valid three-axis " + field + " transform.")
+    return [float(item) for item in value]
+
+
 def _evaluate(node, cq, current=None):
     if isinstance(node, ast.Call):
         args = [_literal(value) if isinstance(value, (ast.Constant, ast.Tuple, ast.List)) else _evaluate(value, cq, current) for value in node.args]
@@ -104,9 +129,7 @@ def _cad_worker(connection, source):
     try:
         import resource
         import cadquery as cq
-        resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (4_000_000, 4_000_000))
-        resource.setrlimit(resource.RLIMIT_NOFILE, (128, 128))
+        configure_worker_limits(resource)
         module = ast.parse(source)
         result = _evaluate(module.body[1].value, cq)
         with tempfile.NamedTemporaryFile(suffix=".stl") as output:
@@ -122,28 +145,69 @@ def _cad_worker(connection, source):
         connection.close()
 
 
+def configure_worker_limits(resource, platform=None):
+    platform = platform or sys.platform
+    memory_limit = "RLIMIT_AS" if platform.startswith("linux") else "RLIMIT_DATA"
+    required = ("RLIMIT_CPU", "RLIMIT_FSIZE", "RLIMIT_NOFILE", "RLIMIT_DATA", memory_limit)
+    if any(not hasattr(resource, name) for name in required):
+        raise RuntimeError("Operating-system resource limits are unavailable.")
+    limits = [
+        ("RLIMIT_CPU", resource.RLIMIT_CPU, (10, 10)),
+        ("RLIMIT_FSIZE", resource.RLIMIT_FSIZE, (4_000_000, 4_000_000)),
+        ("RLIMIT_NOFILE", resource.RLIMIT_NOFILE, (128, 128)),
+        ("RLIMIT_DATA", resource.RLIMIT_DATA, (MAX_WORKER_DATA_BYTES, MAX_WORKER_DATA_BYTES)),
+    ]
+    if memory_limit == "RLIMIT_AS":
+        limits.append(("RLIMIT_AS", resource.RLIMIT_AS, (MAX_WORKER_MEMORY_BYTES, MAX_WORKER_MEMORY_BYTES)))
+    for name, resource_id, value in limits:
+        try:
+            resource.setrlimit(resource_id, value)
+        except (OSError, ValueError) as error:
+            raise RuntimeError("Could not set the CAD worker " + name + " bound: " + str(error))
+
+
 def compile_cadquery_stl(source, timeout_seconds=15):
     validate_cadquery_code(source)
+    if not _CAD_COMPILE_SLOTS.acquire(blocking=False):
+        raise CadError("CAD workers are busy. Try compiling again shortly.", status_code=429)
     parent, child = multiprocessing.get_context("spawn").Pipe(duplex=False)
     process = multiprocessing.get_context("spawn").Process(target=_cad_worker, args=(child, source), daemon=True)
-    process.start()
-    child.close()
-    process.join(timeout_seconds)
-    if process.is_alive():
-        process.kill()
-        process.join()
+    try:
+        process.start()
+        child.close()
+        ok, result = read_worker_result(parent, process, timeout_seconds)
+    finally:
         parent.close()
-        raise CadError("CadQuery compilation exceeded the 15 second time limit.", status_code=422)
-    if not parent.poll():
-        parent.close()
-        raise CadError("CadQuery could not compile the custom part. Check that CadQuery is installed.", status_code=503)
-    ok, result = parent.recv()
-    parent.close()
+        child.close()
+        _CAD_COMPILE_SLOTS.release()
     if not ok:
         message = "CadQuery could not compile the custom part. Check the shape and dimensions."
         if "No module named 'cadquery'" in result:
             raise CadError("3D compilation is not installed on this API service yet.", status_code=503)
+        if "Could not set the CAD worker" in result or "Operating-system resource limits are unavailable" in result:
+            raise CadError("3D compilation is unavailable because this platform cannot enforce the worker's memory limits.", status_code=503)
         raise CadError(message)
+    return result
+
+
+def read_worker_result(parent, process, timeout_seconds=15):
+    """Drain the result before joining to avoid blocking a large child send."""
+    if not parent.poll(timeout_seconds):
+        if process.is_alive():
+            process.kill()
+            process.join()
+            raise CadError("CadQuery compilation exceeded the 15 second time limit.", status_code=422)
+        process.join()
+        raise CadError("CadQuery could not compile the custom part. Check that CadQuery is installed.", status_code=503)
+    try:
+        result = parent.recv()
+    except EOFError:
+        process.join(1)
+        raise CadError("CadQuery could not compile the custom part. Check that CadQuery is installed.", status_code=503)
+    process.join(1)
+    if process.is_alive():
+        process.kill()
+        process.join()
     return result
 
 
@@ -156,24 +220,37 @@ class CadService:
         self.compiler = compiler or compile_cadquery_stl
 
     def compile_design(self, design):
+        if not _CAD_REQUEST_SLOTS.acquire(blocking=False):
+            raise CadError("CAD workers are busy. Try compiling again shortly.", status_code=429)
+        try:
+            return self._compile_design(design)
+        finally:
+            _CAD_REQUEST_SLOTS.release()
+
+    def _compile_design(self, design):
         if not isinstance(design, dict) or not isinstance(design.get("custom_parts", []), list):
             raise CadError("The design does not contain valid custom parts.")
         parts = design.get("custom_parts", [])
         if len(parts) > MAX_CUSTOM_PARTS:
             raise CadError("A design can contain at most 12 custom parts.")
         models = []
+        started = time.monotonic()
         for part in parts:
             if not isinstance(part, dict) or not isinstance(part.get("name"), str) or not isinstance(part.get("cadquery_code"), str):
                 raise CadError("A custom part is missing its name or CadQuery code.")
             code = part["cadquery_code"]
+            position = _placement_vector(part.get("position_mm", [0, 0, 0]), "position_mm", 5000)
+            rotation = _placement_vector(part.get("rotation_deg", [0, 0, 0]), "rotation_deg", 3600)
             failure = None
             for attempt in range(3):
+                if time.monotonic() - started > MAX_DESIGN_CAD_SECONDS:
+                    raise CadError("The design exceeded the 45 second total CAD compilation limit.", status_code=422)
                 try:
                     validate_cadquery_code(code)
                     stl = self.compiler(code)
                     if not isinstance(stl, bytes) or not stl:
                         raise CadError("CadQuery returned an empty STL.")
-                    models.append({"name": part["name"], "purpose": part.get("purpose", ""), "dimensions": part.get("dimensions", ""), "stl_base64": base64.b64encode(stl).decode("ascii")})
+                    models.append({"name": part["name"], "purpose": part.get("purpose", ""), "dimensions": part.get("dimensions", ""), "stl_base64": base64.b64encode(stl).decode("ascii"), "position_mm": position, "rotation_deg": rotation})
                     failure = None
                     break
                 except CadError as error:
@@ -183,7 +260,7 @@ class CadService:
                     code = self.generator(code, str(error), part["name"])
             if failure:
                 raise failure
-        return {"models": models, "assembly": [model["name"] for model in models]}
+        return {"models": models, "assembly": [{"name": model["name"], "position_mm": model["position_mm"], "rotation_deg": model["rotation_deg"]} for model in models]}
 
     def _repair_with_openai(self, code, error, name):
         if not self.api_key:

@@ -37,6 +37,17 @@ class EngineeringCheckTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             calculate_checks({"engineering": {"parts": [{"name": "part", "quantity": -1, "mass_g": 2, "dimensions_mm": [1, 1, 1]}]}})
 
+    def test_marks_contradictory_electrical_ratings_unknown_with_reason(self):
+        checks = {check["id"]: check for check in calculate_checks({"engineering": {
+            "battery_capacity_mah": 2000,
+            "supply_power_w": 100,
+            "consumers": [{"name": "controller", "voltage_v": 5, "current_a": 1, "power_w": 100}],
+        }})["checks"]}
+        for identifier in ("power_budget", "battery_life"):
+            self.assertEqual(checks[identifier]["status"], "unknown")
+            self.assertTrue(any(word in checks[identifier]["reason"].lower() for word in ("conflict", "contradict")))
+            self.assertTrue(checks[identifier]["assumptions"])
+
 
 if __name__ == "__main__":
     unittest.main()

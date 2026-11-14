@@ -1,5 +1,7 @@
 import type { SimulationSpec } from './mujoco'
 
+export type Vector3 = [number, number, number]
+
 export type DesignResult = {
   idea: string
   summary: string
@@ -18,7 +20,7 @@ export type DesignResult = {
   power: { source: string; voltage: string; current: string; capacity: string; estimated_runtime: string }
   dimensions: { width: string; height: string; depth: string; units: string }
   research: Array<{ title: string; url: string; snippet: string }>
-  custom_parts: Array<{ name: string; purpose: string; cadquery_code: string; dimensions: string }>
+  custom_parts: Array<{ name: string; purpose: string; cadquery_code: string; dimensions: string; position_mm: Vector3; rotation_deg: Vector3 }>
   manual: Array<{ number: number; title: string; parts: string[]; tools: string[]; action: string; reason: string; mistakes: string[] }>
   assumptions: string[]
   engineering: {
@@ -36,8 +38,8 @@ export type DesignResponse = { design: DesignResult; cached: boolean }
 export type Answers = Partial<Record<'budget' | 'size' | 'purpose' | 'skill_level', string>>
 export type IntakeQuestion = { id: keyof Answers; label: string; default: string; options: string[]; skip_allowed: boolean }
 export type IntakeResponse = { feasibility: 'feasible' | 'needs_clarification' | 'impossible' | 'unsafe'; explanation: string; alternatives: string[]; questions: IntakeQuestion[] }
-export type CadModel = { name: string; purpose: string; dimensions: string; stl_base64: string }
-export type CadResponse = { models: CadModel[]; assembly: string[] }
+export type CadModel = { name: string; purpose: string; dimensions: string; stl_base64: string; position_mm: Vector3; rotation_deg: Vector3 }
+export type CadResponse = { models: CadModel[]; assembly: Array<{ name: string; position_mm: Vector3; rotation_deg: Vector3 }> }
 export type CheckResult = { id: string; label: string; status: 'pass' | 'warning' | 'unknown'; result: Record<string, unknown> | null; reason: string; assumptions: string[] }
 export type ChecksResponse = { checks: CheckResult[] }
 

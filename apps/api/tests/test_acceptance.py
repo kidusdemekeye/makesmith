@@ -22,7 +22,12 @@ class HardwareIdeaAcceptanceTests(unittest.TestCase):
                 "summary": "A first-pass concept for the requested hardware.",
                 "components": [{"name": "Core assembly", "purpose": "Implements the requested function."}],
                 "parts": [{"name": "Candidate component", "manufacturer": "Example supplier", "model": "Example-1", "specifications": ["Verify compatibility"], "quantity": 1, "links": [], "source_urls": ["https://example.test/datasheet"]}],
+                "connections": [],
+                "power": {"source": "", "voltage": "", "current": "", "capacity": "", "estimated_runtime": ""},
+                "dimensions": {"width": "", "height": "", "depth": "", "units": ""},
                 "research": [{"title": "Datasheet", "url": "https://example.test/datasheet", "snippet": "Example test citation."}],
+                "custom_parts": [], "manual": [], "assumptions": [],
+                "engineering": {"battery_capacity_mah": None, "supply_power_w": None, "consumers": [], "parts": [], "enclosure_mm": None, "strength": []},
                 "simulation": {"model_xml": "", "test_name": "", "test_description": "", "success_condition": "finite_state", "duration_seconds": 1, "velocity_threshold": 0.1},
             }
             text = json.dumps(generated)

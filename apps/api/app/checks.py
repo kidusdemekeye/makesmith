@@ -37,6 +37,7 @@ def calculate_checks(design):
     supply_power = _number(data.get("supply_power_w"), "supply_power_w")
     consumer_watts = []
     consumer_currents = []
+    electrical_conflicts = []
     power_complete = bool(consumers)
     current_complete = bool(consumers)
     for consumer in consumers:
@@ -47,6 +48,10 @@ def calculate_checks(design):
         power = _number(consumer.get("power_w"), "consumer.power_w")
         if power is None and voltage is not None and current is not None:
             power = voltage * current
+        elif power is not None and voltage is not None and current is not None:
+            calculated_power = voltage * current
+            if abs(power - calculated_power) > max(0.1, abs(calculated_power) * 0.1):
+                electrical_conflicts.append(consumer.get("name", "Unnamed load"))
         if power is None:
             power_complete = False
         else:
@@ -57,14 +62,18 @@ def calculate_checks(design):
             current_complete = False
         else:
             consumer_currents.append(current)
-    if supply_power is not None and power_complete:
+    if electrical_conflicts:
+        checks.append(_check("power_budget", "Power budget", "unknown", None, "Contradictory voltage, current, and power ratings were provided for: " + ", ".join(electrical_conflicts) + ".", ["The check uses a 10% consistency tolerance; resolve the conflicting datasheet values before calculating power budget."]))
+    elif supply_power is not None and power_complete:
         total_power = sum(consumer_watts)
         checks.append(_check("power_budget", "Power budget", "pass" if total_power <= supply_power else "warning", {"total_load_w": round(total_power, 3), "supply_limit_w": supply_power, "headroom_w": round(supply_power - total_power, 3)}, "Sum of component power loads compared with the rated supply limit.", ["This compares stated continuous ratings; startup peaks and thermal derating are not modeled."]))
     else:
         checks.append(_check("power_budget", "Power budget", "unknown", None, "Need a supply power rating and voltage/current or power for each load.", ["No missing electrical ratings are guessed."]))
 
     battery_mah = _number(data.get("battery_capacity_mah"), "battery_capacity_mah")
-    if battery_mah and battery_mah > 0 and current_complete:
+    if electrical_conflicts:
+        checks.append(_check("battery_life", "Battery life", "unknown", None, "Battery runtime cannot be estimated while voltage/current/power ratings conflict for: " + ", ".join(electrical_conflicts) + ".", ["Resolve the conflicting electrical ratings before using a runtime estimate."]))
+    elif battery_mah and battery_mah > 0 and current_complete:
         current_ma = sum(consumer_currents) * 1000
         hours = battery_mah * 0.8 / current_ma if current_ma > 0 else None
         if hours is None:
