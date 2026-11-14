@@ -7,8 +7,14 @@ Makesmith helps you turn a hardware idea into a build plan. Describe what you wa
 ## Project timeline
 
 - **Project start:** 2026-11-14 04:51 CST
-- **Phase 1 status:** implementation and deployment configuration are ready locally; live hosting is not yet connected.
+- **Phase 1 status:** frontend and API are deployed; the API health endpoint returns `{"status":"ok"}`.
 - **Project end:** pending completion of Phases 1–5.
+
+## Live Phase 1 deployment
+
+- Web app: [makesmith.vercel.app](https://makesmith.vercel.app)
+- API: [makesmith-api.onrender.com](https://makesmith-api.onrender.com)
+- API health: [makesmith-api.onrender.com/health](https://makesmith-api.onrender.com/health)
 
 ## Stack
 
@@ -67,20 +73,22 @@ npm test
 npm run build
 ```
 
-## Deploy
+## Deployment configuration
+
+The current live deployment is connected to the public `main` branch. Use the following settings when recreating it.
 
 ### API on Render
 
 1. Connect the public `makesmith` repository to Render and choose the Blueprint at `apps/api/render.yaml`.
 2. Set `OPENAI_API_KEY` in the Render service environment. Keep it private; do not add it to GitHub or Vercel.
-3. Set `WEB_ORIGINS` to the deployed Vercel origin (for example, `https://makesmith.example`); include `http://localhost:3000` while developing locally.
+3. Set `WEB_ORIGINS` to the deployed Vercel origin (`https://makesmith.vercel.app`); include `http://localhost:3000` while developing locally.
 4. Render builds `apps/api/Dockerfile` and checks `/health`.
 
 ### Web on Vercel
 
 1. Import the same repository into Vercel.
 2. Set the project Root Directory to `apps/web`.
-3. Set `NEXT_PUBLIC_API_URL` to the Render API origin, without a trailing slash.
+3. Set `NEXT_PUBLIC_API_URL` to `https://makesmith-api.onrender.com` (without a trailing slash).
 4. Deploy. The Next.js build configuration is in `apps/web/vercel.json`.
 
 ## Phase 1 API contract
