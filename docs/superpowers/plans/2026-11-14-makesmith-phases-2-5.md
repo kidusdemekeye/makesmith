@@ -145,11 +145,11 @@
 - Simulation input derives from `Design`; show score, confidence, test, reasons, limitations, and pending/unsupported state.
 - Never claim simulation validates a real device.
 
-- [ ] Test supported model, unsupported model, and low-confidence/unavailable output.
-- [ ] Verify official MuJoCo browser/WASM API and runtime behavior before choosing integration.
-- [ ] Implement one general baseline simulation from structured component/mechanical properties; report unknowns honestly.
-- [ ] Run frontend suite/build and browser smoke test; expected: simulation loads and reports model result or explicit unsupported state.
-- [ ] Commit `feat: run browser-based mujoco simulation`.
+- [x] Test supported model, unsupported model, and low-confidence/unavailable output.
+- [x] Verify official MuJoCo browser/WASM API and runtime behavior before choosing integration.
+- [x] Implement one general baseline simulation from structured component/mechanical properties; report unknowns honestly.
+- [x] Run frontend suite/build and WASM runtime smoke test; simulation loads a model and reports its bounded test result or explicit unsupported state.
+- [x] Commit `feat: run browser-based mujoco simulation`.
 
 ### Task 8: Full workflow, polish, README, release
 

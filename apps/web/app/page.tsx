@@ -7,6 +7,7 @@ import ModelViewer from '../components/ModelViewer'
 import PartsList from '../components/PartsList'
 import BuildManual from '../components/BuildManual'
 import ChecksPanel from '../components/ChecksPanel'
+import Simulation from '../components/Simulation'
 
 const PLACEHOLDERS: Record<Exclude<ResultTabId, 'design'>, { eyebrow: string; title: string; description: string }> = {
   parts: { eyebrow: 'NEXT IN THE WORKFLOW', title: 'Parts grounded in real sources', description: 'Exact components, specifications, and search links will be collected here after research is added.' },
@@ -236,6 +237,8 @@ export default function Home() {
                 {checksError && <p className="error-message" role="alert">{checksError}</p>}
                 {checksResult ? <ChecksPanel checks={checksResult.checks} /> : <p className="empty-detail">Run the checks to see the power budget, battery estimate, total weight, fit, and simple strength review. Missing measurements will stay marked unknown.</p>}
               </div>
+            ) : activeTab === 'simulation' && design ? (
+              <Simulation spec={design.simulation} quality={{ engineeringComplete: design.engineering.parts.length > 0 && design.engineering.parts.every((part) => part.mass_g !== null && part.dimensions_mm !== null), sourceCount: design.research.length }} />
             ) : (
               <div className="placeholder-workspace"><div className="placeholder-art" aria-hidden="true"><span className="placeholder-ring" /><span className="placeholder-center">{RESULT_TABS.find((tab) => tab.id === activeTab)?.number}</span></div><div className="placeholder-copy"><div className="eyebrow"><span>{PLACEHOLDERS[activeTab].eyebrow}</span></div><h3>{PLACEHOLDERS[activeTab].title}</h3><p>{PLACEHOLDERS[activeTab].description}</p><span className="coming-note"><span className="status-dot" /> WORKSPACE READY TO GROW</span></div></div>
             )}

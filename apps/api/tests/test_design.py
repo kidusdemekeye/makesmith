@@ -79,6 +79,15 @@ class DesignServiceTests(unittest.TestCase):
         self.transport.return_value = {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated)}]}]}
         self.assertEqual(self.service.design("Build a monitor")["engineering"], generated["engineering"])
 
+    def test_returns_a_project_simulation_model_and_bounded_test_spec(self):
+        generated = {"summary": "A stable monitor", "components": [], "parts": [], "connections": [], "power": {}, "dimensions": {},
+                     "simulation": {"model_xml": "<mujoco model='monitor'><worldbody/></mujoco>", "test_name": "settle test", "test_description": "Check that the monitor settles on a surface.", "success_condition": "settles", "duration_seconds": 2, "velocity_threshold": 0.1}}
+        self.transport.return_value = {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated)}]}]}
+        result = self.service.design("Build a monitor")
+        self.assertEqual(result["simulation"]["model_xml"], generated["simulation"]["model_xml"])
+        self.assertEqual(result["simulation"]["success_condition"], "settles")
+        self.assertEqual(self.transport.call_args.args[1]["text"]["format"]["schema"]["properties"]["simulation"]["properties"]["success_condition"]["enum"], ["finite_state", "settles"])
+
     def test_includes_only_cited_http_sources_and_build_artifacts(self):
         generated = {
             "summary": "A compact monitor", "components": [],

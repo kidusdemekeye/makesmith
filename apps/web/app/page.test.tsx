@@ -19,6 +19,7 @@ const sample: DesignResponse = {
     dimensions: { width: '', height: '', depth: '', units: '' },
     research: [{ title: 'Probe datasheet', url: 'https://example.com/probe', snippet: 'Capacitive sensor datasheet.' }], custom_parts: [], manual: [{ number: 1, title: 'Mount the probe', parts: ['Moisture probe'], tools: ['Small screwdriver'], action: 'Secure the probe above the soil.', reason: 'This keeps the electronics dry.', mistakes: ['Do not bury the circuit board.'] }], assumptions: [],
     engineering: { battery_capacity_mah: null, supply_power_w: null, consumers: [], parts: [], enclosure_mm: null, strength: [] },
+    simulation: { model_xml: '<mujoco model="garden"><worldbody><geom type="plane" size="1 1 .1"/></worldbody></mujoco>', test_name: 'Numerical stability', test_description: 'Step the garden frame for one second.', success_condition: 'finite_state', duration_seconds: 1, velocity_threshold: 0.1 },
   },
   cached: false,
 }
@@ -149,5 +150,19 @@ describe('Makesmith workspace', () => {
     expect(await screen.findByText('Need rated power.')).toBeTruthy()
     expect(screen.getByText('No ratings are guessed.')).toBeTruthy()
     expect(runChecks).toHaveBeenCalledWith(sample.design)
+  })
+
+  it('opens the browser simulation for the same structured design', async () => {
+    const user = userEvent.setup()
+    vi.mocked(designIdea).mockResolvedValue(sample)
+    render(<Home />)
+    await user.type(screen.getByRole('textbox', { name: 'Describe your hardware idea' }), 'A compact indoor garden')
+    await user.click(screen.getByRole('button', { name: /Check my idea/ }))
+    await screen.findByRole('heading', { name: 'A few details' })
+    await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
+    await screen.findByRole('heading', { name: 'A self-watering indoor garden' })
+    await user.click(screen.getByRole('tab', { name: /Simulation/ }))
+    expect(screen.getByRole('heading', { name: 'Run a focused physics test' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Run MuJoCo test/ })).toBeTruthy()
   })
 })

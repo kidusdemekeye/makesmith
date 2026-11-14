@@ -1,3 +1,5 @@
+import type { SimulationSpec } from './mujoco'
+
 export type DesignResult = {
   idea: string
   summary: string
@@ -27,6 +29,7 @@ export type DesignResult = {
     enclosure_mm: Array<number | null> | null
     strength: Array<{ name: string; load_n: number | null; cross_section_mm2: number | null; allowable_stress_mpa: number | null }>
   }
+  simulation: SimulationSpec
 }
 
 export type DesignResponse = { design: DesignResult; cached: boolean }

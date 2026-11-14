@@ -1,35 +1,45 @@
 # Makesmith
 
-Makesmith helps you turn a hardware idea into a build plan. Describe what you want to make, get a structured first design from OpenAI, then grow the plan through research, parts, CAD, instructions, checks, and simulation.
-
-> **Phase 1 prototype:** the idea intake and OpenAI-backed design workspace are working. Parts, Manual, 3D Files, Checks, and Simulation are present as honest workspaces for later phases; they do not claim to generate those outputs yet.
+Makesmith turns a hardware idea into a researched, structured build plan. Describe a device, review the feasibility questions, then use one design record to view researched parts, assembly instructions, custom printable geometry, engineering checks, and an optional browser simulation.
 
 ## Project timeline
 
 - **Project start:** 2026-11-14 04:51 CST
-- **Phase 1 status:** frontend and API are deployed; the API health endpoint returns `{"status":"ok"}`.
-- **Project end:** pending completion of Phases 1–5.
+- **Project end:** pending final deployment verification.
 
-## Live Phase 1 deployment
+## Live app
 
-- Web app: [makesmith.vercel.app](https://makesmith.vercel.app)
+- Web: [makesmith.vercel.app](https://makesmith.vercel.app)
 - API: [makesmith-api.onrender.com](https://makesmith-api.onrender.com)
-- API health: [makesmith-api.onrender.com/health](https://makesmith-api.onrender.com/health)
+- Health: [makesmith-api.onrender.com/health](https://makesmith-api.onrender.com/health)
+
+## What works
+
+- OpenAI feasibility check with four editable questions and defaults, impossible-idea alternatives, and a safety refusal path.
+- OpenAI Responses API with OpenAI's built-in web search for sourced parts, datasheets, connections, dimensions, and a single structured JSON design.
+- Parts list with exact search links and citations; no live price scraping.
+- CadQuery code validation, bounded subprocess compilation, up to three AI repair attempts, downloadable STL files, and Three.js part/assembly viewer.
+- Numbered, explanatory assembly manual with a browser print-to-PDF option.
+- Deterministic power, battery runtime, weight, fit, and basic axial-strength checks. Missing numeric inputs are shown as unknown.
+- Optional MuJoCo WebAssembly test using the model and test description attached to the design. It reports whether that narrow test passed, confidence, and reasons. A pass is not a probability that a real device will work or a substitute for physical testing.
+- A single browser session, no accounts, and process-local response caching. No spend cap is configured.
+
+The service refuses requests to design weapons or support violent attacks. The prototype is a planning aid; verify component ratings, fit, and safety before building or using a device.
 
 ## Stack
 
-- Frontend: Next.js App Router, React, TypeScript; deploy from `apps/web` to Vercel.
-- Backend: Python FastAPI; deploy from `apps/api` to Render or Railway.
-- AI: OpenAI Responses API. The default design model is GPT-6 Astra; the configured lower-cost model for smaller tasks is GPT-6 Luna. Model IDs can be changed through environment variables.
-- Research in Phase 2: OpenAI's built-in web search tool, with source citations displayed alongside research.
+- Frontend: Next.js, React, TypeScript, Three.js, and official MuJoCo WebAssembly bindings; deploy from `apps/web` to Vercel.
+- Backend: Python FastAPI and CadQuery; deploy from `apps/api` to Render or Railway.
+- AI: OpenAI Responses API. `OPENAI_DESIGN_MODEL` defaults to `gpt-6-astra`; `OPENAI_SMALL_MODEL` defaults to `gpt-6-luna`. Set `OPENAI_API_KEY` only in the API service environment.
+- Research: OpenAI's built-in `web_search` tool; only cited HTTP(S) results are included as sources.
 
-The backend uses strict structured output for a single normalized design object. It caches successful designs by the exact trimmed idea for the life of the API process. The OpenAI API key stays on the server and is never sent to the browser. This app has no user accounts or saved projects; run one active project session at a time.
+The backend cache lasts for the lifetime of its process. Designs and answers are held in the browser session and are not saved as user projects.
 
 ## Run locally
 
 Use Python 3.10+ and Node.js 20.9+.
 
-### 1. Start the API
+### API
 
 ```bash
 cd apps/api
@@ -39,15 +49,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set `OPENAI_API_KEY` in `apps/api/.env`, then run:
+Add `OPENAI_API_KEY` to `apps/api/.env`, then start the server:
 
 ```bash
 uvicorn --env-file .env app.main:app --reload --port 8000
 ```
 
-The API health check is `http://localhost:8000/health`.
-
-### 2. Start the web app
+### Web app
 
 In another terminal:
 
@@ -58,13 +66,13 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Set `NEXT_PUBLIC_API_URL` in `apps/web/.env.local` if the API is not at `http://localhost:8000`.
+Open `http://localhost:3000`. Set `NEXT_PUBLIC_API_URL` in `.env.local` if the API is not at `http://localhost:8000`. The dev and build commands copy the MuJoCo runtime files from the installed package into Next.js's public assets.
 
-### Tests and production build
+## Tests and production build
 
 ```bash
 cd apps/api
-python -m unittest discover -s tests -v
+PYTHONPATH=../.. python -m pytest tests -q
 ```
 
 ```bash
@@ -73,40 +81,29 @@ npm test
 npm run build
 ```
 
+The repository's deterministic acceptance fixtures cover a drone, headphones, a blood pressure monitor, a robotic arm, and an impossible idea without spending tokens on live AI calls.
+
 ## Deployment configuration
 
-The current live deployment is connected to the public `main` branch. Use the following settings when recreating it.
+The public GitHub repository is `kidusdemekeye/makesmith`; `main` is connected to the deployments.
 
-### API on Render
+### Render API
 
-1. Connect the public `makesmith` repository to Render and choose the Blueprint at `apps/api/render.yaml`.
-2. Set `OPENAI_API_KEY` in the Render service environment. Keep it private; do not add it to GitHub or Vercel.
-3. Set `WEB_ORIGINS` to the deployed Vercel origin (`https://makesmith.vercel.app`); include `http://localhost:3000` while developing locally.
-4. Render builds `apps/api/Dockerfile` and checks `/health`.
+1. Create a Blueprint using `apps/api/render.yaml`.
+2. Set `OPENAI_API_KEY` in the API service environment and keep it out of GitHub and Vercel.
+3. Set `WEB_ORIGINS` to `https://makesmith.vercel.app` (and add `http://localhost:3000` for local development).
+4. The service uses `apps/api/Dockerfile` and the `/health` endpoint.
 
-### Web on Vercel
+### Vercel web app
 
-1. Import the same repository into Vercel.
-2. Set the project Root Directory to `apps/web`.
-3. Set `NEXT_PUBLIC_API_URL` to `https://makesmith-api.onrender.com` (without a trailing slash).
-4. Deploy. The Next.js build configuration is in `apps/web/vercel.json`.
+1. Set the project root directory to `apps/web`.
+2. Set `NEXT_PUBLIC_API_URL` to `https://makesmith-api.onrender.com`.
+3. Use `npm run build` as configured in `apps/web/vercel.json`.
 
-## Phase 1 API contract
+## Scope and limitations
 
-`POST /api/design`
-
-```json
-{"idea":"A compact indoor garden that waters itself"}
-```
-
-The response is `{ "design": { ... }, "cached": false }`. `design` contains `idea`, `summary`, `components`, `parts`, `connections`, `power`, and `dimensions`. The same normalized result is returned with `cached: true` for a repeated idea.
-
-## Roadmap
-
-1. **Phase 1:** repository, deployable web and API apps, idea box, six workspaces, OpenAI design connection. *(Current milestone.)*
-2. **Phase 2:** defaulted follow-up questions, feasibility and alternatives, live research through OpenAI web search, structured design.
-3. **Phase 3:** sourced parts list, CadQuery/STL workflow, Three.js viewer, assembly manual, PDF export.
-4. **Phase 4:** power/weight/fit/strength checks, project-specific MuJoCo WASM simulation, explained success estimate.
-5. **Phase 5:** test several hardware ideas and an impossible one, stage-by-stage progress, polish, and record the project completion time above.
-
-Later phases must keep using the structured design as their shared source of truth. The app should remain open to hardware ideas without hardcoded product categories.
+- No user accounts, saved projects, live pricing, or camera-based build checking.
+- Parts and research depend on the current search response and cited sources; verify availability and compatibility.
+- CAD output is limited to the supported CadQuery operations and per-process resource bounds.
+- Engineering checks use only numeric inputs in the structured design. They do not replace a full electrical, structural, or regulatory review.
+- Simulation runs a small project-specific MJCF test in the browser. Unsupported or missing models remain explicitly unavailable; the score summarizes the stated test only.

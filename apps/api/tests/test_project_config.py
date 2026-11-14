@@ -9,8 +9,8 @@ class ProjectConfigTests(unittest.TestCase):
     def test_readme_records_start_time_and_local_run_commands(self):
         readme = (ROOT / "README.md").read_text()
         self.assertIn("2026-11-14 04:51 CST", readme)
-        self.assertIn("Phase 1 status:", readme)
-        self.assertIn("pending completion of Phases 1–5", readme)
+        self.assertIn("Project start:", readme)
+        self.assertIn("Project end:", readme)
         self.assertIn("npm run dev", readme)
         self.assertIn("uvicorn --env-file .env app.main:app", readme)
         self.assertIn("OPENAI_API_KEY", readme)
@@ -42,6 +42,8 @@ class ProjectConfigTests(unittest.TestCase):
         self.assertIn("OpenAI's built-in web search", readme)
         self.assertNotIn("Anthropic", readme)
         self.assertNotIn("$20", readme)
+        self.assertIn("MuJoCo WebAssembly", readme)
+        self.assertIn("print-to-PDF", readme)
 
 
 if __name__ == "__main__":
