@@ -19,6 +19,7 @@ MAX_CAD_OPERATIONS = 40
 MAX_CAD_AST_NODES = 1000
 MAX_WORKER_MEMORY_BYTES = 2 * 1024 * 1024 * 1024
 MAX_WORKER_DATA_BYTES = 2 * 1024 * 1024 * 1024
+MAX_CAD_COMPILE_SECONDS = 30
 MAX_DESIGN_CAD_SECONDS = 45
 _CAD_COMPILE_SLOTS = threading.BoundedSemaphore(1)
 _CAD_REQUEST_SLOTS = threading.BoundedSemaphore(1)
@@ -166,7 +167,7 @@ def configure_worker_limits(resource, platform=None):
             raise RuntimeError("Could not set the CAD worker " + name + " bound: " + str(error))
 
 
-def compile_cadquery_stl(source, timeout_seconds=15):
+def compile_cadquery_stl(source, timeout_seconds=MAX_CAD_COMPILE_SECONDS):
     validate_cadquery_code(source)
     if not _CAD_COMPILE_SLOTS.acquire(blocking=False):
         raise CadError("CAD workers are busy. Try compiling again shortly.", status_code=429)
@@ -196,7 +197,7 @@ def read_worker_result(parent, process, timeout_seconds=15):
         if process.is_alive():
             process.kill()
             process.join()
-            raise CadError("CadQuery compilation exceeded the 15 second time limit.", status_code=422)
+            raise CadError("CadQuery compilation exceeded the " + str(timeout_seconds) + " second time limit.", status_code=422)
         process.join()
         raise CadError("CadQuery could not compile the custom part. Check that CadQuery is installed.", status_code=503)
     try:
@@ -243,11 +244,12 @@ class CadService:
             rotation = _placement_vector(part.get("rotation_deg", [0, 0, 0]), "rotation_deg", 3600)
             failure = None
             for attempt in range(3):
-                if time.monotonic() - started > MAX_DESIGN_CAD_SECONDS:
+                remaining_seconds = MAX_DESIGN_CAD_SECONDS - (time.monotonic() - started)
+                if remaining_seconds <= 0:
                     raise CadError("The design exceeded the 45 second total CAD compilation limit.", status_code=422)
                 try:
                     validate_cadquery_code(code)
-                    stl = self.compiler(code)
+                    stl = self.compiler(code, timeout_seconds=min(MAX_CAD_COMPILE_SECONDS, remaining_seconds))
                     if not isinstance(stl, bytes) or not stl:
                         raise CadError("CadQuery returned an empty STL.")
                     models.append({"name": part["name"], "purpose": part.get("purpose", ""), "dimensions": part.get("dimensions", ""), "stl_base64": base64.b64encode(stl).decode("ascii"), "position_mm": position, "rotation_deg": rotation})
