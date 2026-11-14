@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: makesmith-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /health
+    numInstances: 1
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_DESIGN_MODEL
+        value: gpt-6-astra
+      - key: OPENAI_SMALL_MODEL
+        value: gpt-6-luna
+      - key: WEB_ORIGINS
+        sync: false

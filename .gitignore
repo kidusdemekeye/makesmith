@@ -1,1 +1,27 @@
+# Local git worktrees
 .worktrees/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Node and Next.js
+node_modules/
+.next/
+out/
+
+# Local toolchain and agent scratch
+.tools/
+.codex/
+.superpowers/
+
+# macOS
+.DS_Store

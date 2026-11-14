@@ -101,12 +101,13 @@
 - Create: `apps/api/render.yaml`
 - Create: `apps/web/.env.example`
 - Create: `apps/api/.env.example`
+- Test: `apps/api/tests/test_project_config.py`
 - Modify: root `.gitignore`
 
 **Interfaces:**
 - Local start commands run API at port 8000 and web at port 3000.
 - Render and Vercel settings are committed and can be connected to the GitHub repository without code changes.
-- README records project start time exactly as `2026-11-14 04:51 CST` and identifies the current Phase 1 finish time when implementation is complete.
+- README records project start time exactly as `2026-11-14 04:51 CST`; project end time stays pending until Phases 1–5 are complete and the README accurately states Phase 1 deployment status.
 
 - [ ] **Step 1: Write failing documentation/config checks** for required setup commands, environment variable names, start timestamp and deployment roots.
 - [ ] **Step 2: Run the config checks;** confirm they fail before these files exist.
@@ -118,5 +119,5 @@
 
 - Phase 1 coverage: repo scaffold, OpenAI API connection, interface, six result tabs, deployment configs, README/start time, and response cache are assigned to the three tasks.
 - Phase 2–5 workflows are deliberately excluded from this Phase 1 plan and remain future work. Phase 2 research will use OpenAI's built-in web search.
-- Shared interface check: API response contract (Task 1 producer) matches frontend `DesignResult` and API client (Task 2 consumer).
+- Shared interface check: API response contract (Task 1 producer) matches frontend `DesignResponse` and API client (Task 2 consumer).
 - Deployment requires external Vercel/Render accounts and credentials; repository configuration is included, while actual service creation is contingent on available authorized integrations.
