@@ -37,10 +37,14 @@ export async function designIdea(idea: string): Promise<DesignResponse> {
     payload = null
   }
   if (!response.ok) {
-    const detail = payload && typeof payload === 'object' && 'detail' in payload
-      ? String(payload.detail)
-      : 'Could not generate a design. Try again.'
-    throw new Error(detail)
+    const detail = payload && typeof payload === 'object' && 'detail' in payload ? payload.detail : null
+    let message = 'Could not generate a design. Try again.'
+    if (typeof detail === 'string') {
+      message = detail
+    } else if (Array.isArray(detail) && detail.length > 0 && typeof detail[0] === 'object' && detail[0] !== null && 'msg' in detail[0] && typeof detail[0].msg === 'string') {
+      message = detail[0].msg
+    }
+    throw new Error(message)
   }
   if (!payload || typeof payload !== 'object' || !('design' in payload) || !('cached' in payload)) {
     throw new Error('The design service returned an unexpected response. Please try again.')

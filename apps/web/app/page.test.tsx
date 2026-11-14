@@ -12,7 +12,7 @@ const sample: DesignResponse = {
     idea: 'A compact indoor garden',
     summary: 'A self-watering indoor garden',
     components: [{ name: 'Moisture sensor', purpose: 'Detects dry soil' }],
-    parts: [],
+    parts: [{ name: 'Moisture probe', manufacturer: 'Fieldworks', model: 'FP-1', specifications: ['Capacitive'], quantity: 1, links: [] }],
     connections: [],
     power: { source: '', voltage: '', current: '', capacity: '', estimated_runtime: '' },
     dimensions: { width: '', height: '', depth: '', units: '' },
@@ -54,6 +54,8 @@ describe('Makesmith workspace', () => {
     await user.click(screen.getByRole('button', { name: /Draft my design/ }))
     expect(await screen.findByRole('heading', { name: 'A self-watering indoor garden' })).toBeTruthy()
     expect(screen.getByText('Moisture sensor')).toBeTruthy()
+    expect(screen.getByText('Preliminary part ideas · not yet researched')).toBeTruthy()
+    expect(screen.getByText('Moisture probe')).toBeTruthy()
     expect(designIdea).toHaveBeenCalledWith('A compact indoor garden')
   })
 })

@@ -6,6 +6,8 @@ import urllib.error
 import urllib.request
 
 MAX_IDEA_CHARS = 5000
+POWER_FIELDS = ("source", "voltage", "current", "capacity", "estimated_runtime")
+DIMENSION_FIELDS = ("width", "height", "depth", "units")
 
 DESIGN_SCHEMA = {
     "type": "object",
@@ -136,22 +138,89 @@ class DesignService:
             generated = json.loads(text, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
             if not isinstance(generated, dict):
                 raise ValueError("Expected a JSON object")
+            normalized = self._normalize_design(generated)
         except (ValueError, TypeError, KeyError, AttributeError):
             raise DesignError("OpenAI returned an unreadable design. Please try again.")
         except Exception:
             raise DesignError("OpenAI design could not be generated. Check the API configuration and try again.")
 
-        design = {
-            "idea": idea,
-            "summary": generated.get("summary", ""),
-            "components": generated.get("components", []),
-            "parts": generated.get("parts", []),
-            "connections": generated.get("connections", []),
-            "power": generated.get("power", {}),
-            "dimensions": generated.get("dimensions", {}),
-        }
+        design = {"idea": idea, **normalized}
         self.cache[idea] = design
         return design, False
+
+    @staticmethod
+    def _normalize_design(generated):
+        def text(value, field):
+            if not isinstance(value, str):
+                raise ValueError("Invalid text field: " + field)
+            return value
+
+        def text_list(value, field):
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                raise ValueError("Invalid text list: " + field)
+            return value
+
+        summary = text(generated.get("summary", ""), "summary")
+
+        raw_components = generated.get("components", [])
+        if not isinstance(raw_components, list):
+            raise ValueError("Invalid components")
+        components = []
+        for item in raw_components:
+            if not isinstance(item, dict):
+                raise ValueError("Invalid component")
+            components.append({
+                "name": text(item.get("name", ""), "component.name"),
+                "purpose": text(item.get("purpose", ""), "component.purpose"),
+            })
+
+        raw_parts = generated.get("parts", [])
+        if not isinstance(raw_parts, list):
+            raise ValueError("Invalid parts")
+        parts = []
+        for item in raw_parts:
+            if not isinstance(item, dict):
+                raise ValueError("Invalid part")
+            quantity = item.get("quantity", 0)
+            if isinstance(quantity, bool) or not isinstance(quantity, int):
+                raise ValueError("Invalid part quantity")
+            parts.append({
+                "name": text(item.get("name", ""), "part.name"),
+                "manufacturer": text(item.get("manufacturer", ""), "part.manufacturer"),
+                "model": text(item.get("model", ""), "part.model"),
+                "specifications": text_list(item.get("specifications", []), "part.specifications"),
+                "quantity": quantity,
+                "links": text_list(item.get("links", []), "part.links"),
+            })
+
+        raw_connections = generated.get("connections", [])
+        if not isinstance(raw_connections, list):
+            raise ValueError("Invalid connections")
+        connections = []
+        for item in raw_connections:
+            if not isinstance(item, dict):
+                raise ValueError("Invalid connection")
+            connections.append({
+                "from": text(item.get("from", ""), "connection.from"),
+                "to": text(item.get("to", ""), "connection.to"),
+                "description": text(item.get("description", ""), "connection.description"),
+            })
+
+        power = generated.get("power", {})
+        dimensions = generated.get("dimensions", {})
+        if not isinstance(power, dict) or not isinstance(dimensions, dict):
+            raise ValueError("Invalid power or dimensions")
+        power = {field: text(power.get(field, ""), "power." + field) for field in POWER_FIELDS}
+        dimensions = {field: text(dimensions.get(field, ""), "dimensions." + field) for field in DIMENSION_FIELDS}
+
+        return {
+            "summary": summary,
+            "components": components,
+            "parts": parts,
+            "connections": connections,
+            "power": power,
+            "dimensions": dimensions,
+        }
 
     @staticmethod
     def _request_openai(api_key, payload):

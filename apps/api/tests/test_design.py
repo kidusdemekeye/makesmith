@@ -26,9 +26,31 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual(result["components"], [])
         self.assertEqual(result["parts"], [])
         self.assertEqual(result["connections"], [])
-        self.assertEqual(result["power"], {})
-        self.assertEqual(result["dimensions"], {})
+        self.assertEqual(result["power"], {"source": "", "voltage": "", "current": "", "capacity": "", "estimated_runtime": ""})
+        self.assertEqual(result["dimensions"], {"width": "", "height": "", "depth": "", "units": ""})
         json.dumps(result)
+
+    def test_rejects_wrongly_typed_output_without_caching(self):
+        invalid_designs = [
+            {"components": None},
+            {"summary": {"text": "wrong type"}},
+            {"components": [{"name": 4, "purpose": "invalid name"}]},
+            {"parts": [{"name": "Sensor", "manufacturer": "Acme", "model": "M1", "specifications": [], "quantity": "one", "links": []}]},
+            {"connections": [{"from": "sensor", "to": None, "description": "bad endpoint"}]},
+            {"power": []},
+            {"dimensions": {"width": 10}},
+        ]
+        for index, invalid in enumerate(invalid_designs):
+            with self.subTest(invalid=invalid):
+                generated = {"summary": "A monitor", "components": [], "parts": [], "connections": [], "power": {}, "dimensions": {}}
+                generated.update(invalid)
+                idea = "Build a monitor " + str(index)
+                self.transport.return_value = {
+                    "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated)}]}],
+                }
+                with self.assertRaises(DesignError):
+                    self.service.design(idea)
+                self.assertNotIn(idea, self.service.cache)
 
     def test_uses_openai_responses_with_strict_structured_output(self):
         self.service.design("Build a monitor")

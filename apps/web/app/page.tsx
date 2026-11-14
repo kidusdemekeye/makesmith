@@ -111,6 +111,10 @@ export default function Home() {
                   </article>
                   <article className="detail-card"><div className="detail-head"><span className="detail-index">C</span><h4>Power notes</h4></div><dl className="spec-list">{Object.entries(design.power).map(([key, value]) => <div key={key}><dt>{key.replaceAll('_', ' ')}</dt><dd>{value || '—'}</dd></div>)}</dl></article>
                   <article className="detail-card"><div className="detail-head"><span className="detail-index">D</span><h4>Envelope</h4></div><dl className="spec-list">{Object.entries(design.dimensions).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl></article>
+                  <article className="detail-card preliminary-parts">
+                    <div className="detail-head"><span className="detail-index">E</span><h4>Preliminary part ideas · not yet researched</h4><span className="detail-count">{countLabel(design.parts.length, 'item')}</span></div>
+                    {design.parts.length ? <ul className="component-list">{design.parts.map((part, index) => <li key={`${part.name}-${index}`}><span className="list-bullet">{String(index + 1).padStart(2, '0')}</span><span><strong>{part.name || 'Unnamed part'}</strong><small>{[part.manufacturer, part.model].filter(Boolean).join(' · ') || `${countLabel(part.quantity, 'unit')} suggested`}</small>{part.specifications.length > 0 && <small>{part.specifications.join(' · ')}</small>}</span></li>)}</ul> : <p className="empty-detail">No part candidates were returned in this first pass.</p>}
+                  </article>
                 </div>
                 <div className="design-footnote"><span className="sparkle">✳</span> Treat this as a starting point. Research and engineering checks will ground the next iteration.</div>
               </div>
