@@ -1,20 +1,37 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { compileCad, designIdea, getIntake, runChecks } from './api'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('designIdea', () => {
   it('posts an idea and returns the normalized design response', async () => {
     const response = { design: { idea: 'Headphones', summary: 'A listening device' }, cached: false }
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ job_id: 'job-123' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'complete', ...response }) })
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(designIdea('Headphones', { budget: 'Under $50' })).resolves.toEqual(response)
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/design', {
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/design/jobs', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ idea: 'Headphones', answers: { budget: 'Under $50' } }),
     })
+    expect(fetchMock).toHaveBeenLastCalledWith('http://localhost:8000/api/design/jobs/job-123', { method: 'GET' })
+  })
+
+  it('keeps polling a pending design job until the design is ready', async () => {
+    vi.useFakeTimers()
+    const response = { design: { idea: 'Headphones', summary: 'A listening device' }, cached: false }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ job_id: 'job-456' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'pending' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'complete', ...response }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const result = designIdea('Headphones')
+    await vi.advanceTimersByTimeAsync(1000)
+    await expect(result).resolves.toEqual(response)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('uses a safe server message when the API rejects a design', async () => {

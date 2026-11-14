@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from apps.api.app.design import DESIGN_SCHEMA, DesignService, DesignError
 
@@ -163,6 +163,19 @@ class DesignServiceTests(unittest.TestCase):
         with self.assertRaises(DesignError):
             self.service.design("Build a monitor")
         self.assertEqual(self.transport.call_count, 2)
+
+    def test_preserves_safe_timeout_message_from_openai_transport(self):
+        self.transport.side_effect = DesignError("OpenAI research is taking longer than expected. Please retry.")
+        with self.assertRaises(DesignError) as error:
+            self.service.design("Build a monitor")
+        self.assertEqual(str(error.exception), "OpenAI research is taking longer than expected. Please retry.")
+
+    def test_openai_transport_allows_time_for_live_research_and_reports_timeout_clearly(self):
+        with patch("apps.api.app.design.urllib.request.urlopen", side_effect=TimeoutError("read timed out")) as open_url:
+            with self.assertRaises(DesignError) as error:
+                DesignService._request_openai("test-key", {"model": "test"})
+        self.assertEqual(open_url.call_args.kwargs["timeout"], 240)
+        self.assertIn("taking longer than expected", str(error.exception))
 
 
 if __name__ == "__main__":

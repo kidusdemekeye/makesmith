@@ -1,4 +1,5 @@
 import unittest
+from concurrent.futures import Future
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -46,6 +47,23 @@ class ApiRouteTests(unittest.TestCase):
         with patch.object(main.intake_service, "intake", return_value={"feasibility": "feasible"}), patch.object(main.service, "design_with_status", return_value=({"idea": "Build a monitor"}, False)) as design:
             main.create_design(main.DesignRequest(idea="Build a monitor", answers={"budget": "Under $50"}))
         design.assert_called_once_with("Build a monitor", {"budget": "Under $50"})
+
+    def test_design_job_returns_immediately_and_can_be_polled_until_complete(self):
+        future = Future()
+        with patch.object(main.intake_service, "intake", return_value={"feasibility": "feasible"}), patch.object(main._design_executor, "submit", return_value=future) as submit:
+            started = main.start_design_job(main.DesignRequest(idea="Build a monitor", answers={"budget": "Under $50"}))
+        self.assertIn("job_id", started)
+        self.assertEqual(main.get_design_job(started["job_id"]), {"status": "pending"})
+        submit.assert_called_once()
+        future.set_result(({"idea": "Build a monitor"}, True))
+        self.assertEqual(main.get_design_job(started["job_id"]), {"status": "complete", "design": {"idea": "Build a monitor"}, "cached": True})
+
+    def test_design_job_maps_background_errors_to_safe_status(self):
+        future = Future()
+        with patch.object(main.intake_service, "intake", return_value={"feasibility": "feasible"}), patch.object(main._design_executor, "submit", return_value=future):
+            started = main.start_design_job(main.DesignRequest(idea="Build a monitor"))
+        future.set_exception(DesignError("OpenAI is taking longer than expected."))
+        self.assertEqual(main.get_design_job(started["job_id"]), {"status": "error", "detail": "OpenAI is taking longer than expected."})
 
     def test_direct_design_route_rejects_unsafe_idea_before_generation(self):
         unsafe = {"feasibility": "unsafe", "explanation": "Cannot assist this device.", "alternatives": []}

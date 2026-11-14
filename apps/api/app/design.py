@@ -3,6 +3,7 @@
 import json
 import math
 import os
+import socket
 import urllib.error
 import urllib.request
 from urllib.parse import quote, urlsplit
@@ -224,6 +225,8 @@ class DesignService:
                 raise ValueError("Expected a JSON object")
             _validate_schema(generated, DESIGN_SCHEMA)
             normalized = self._normalize_design(generated, citations)
+        except DesignError:
+            raise
         except (ValueError, TypeError, KeyError, AttributeError):
             raise DesignError("OpenAI returned an unreadable design. Please try again.")
         except Exception:
@@ -486,7 +489,19 @@ class DesignService:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=90) as response:
+            with urllib.request.urlopen(request, timeout=240) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        except (TimeoutError, socket.timeout):
+            raise DesignError("OpenAI research is taking longer than expected. Please retry; your details are still here.", status_code=504)
+        except urllib.error.HTTPError as error:
+            if error.code in (401, 403):
+                raise DesignError("OpenAI rejected the API key or project permissions. Check the API service configuration.", status_code=502)
+            if error.code == 429:
+                raise DesignError("OpenAI is temporarily rate limited. Please wait a moment and try again.", status_code=503)
+            raise DesignError("OpenAI rejected the design request. Please try again.", status_code=502)
+        except urllib.error.URLError as error:
+            if isinstance(error.reason, (TimeoutError, socket.timeout)):
+                raise DesignError("OpenAI research is taking longer than expected. Please retry; your details are still here.", status_code=504)
+            raise DesignError("Could not reach OpenAI. Please try again in a moment.", status_code=502)
+        except json.JSONDecodeError:
             raise DesignError("OpenAI design could not be generated. Check the API configuration and try again.")

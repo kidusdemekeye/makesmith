@@ -48,13 +48,12 @@ function apiBaseUrl() {
   return baseUrl
 }
 
-async function request<T>(path: string, body: unknown, fallback: string): Promise<T> {
+async function request<T>(path: string, body: unknown, fallback: string, method: 'GET' | 'POST' = 'POST'): Promise<T> {
   let response: Response
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      method,
+      ...(method === 'POST' ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
     })
   } catch {
     throw new Error('Could not reach Makesmith. Check that the API is running and try again.')
@@ -80,11 +79,27 @@ async function request<T>(path: string, body: unknown, fallback: string): Promis
 }
 
 export async function designIdea(idea: string, answers: Answers = {}): Promise<DesignResponse> {
-  const payload = await request<unknown>('/api/design', { idea, answers }, 'Could not generate a design. Try again.')
-  if (!payload || typeof payload !== 'object' || !('design' in payload) || !('cached' in payload)) {
+  const started = await request<unknown>('/api/design/jobs', { idea, answers }, 'Could not generate a design. Try again.')
+  if (!started || typeof started !== 'object' || !('job_id' in started) || typeof started.job_id !== 'string') {
     throw new Error('The design service returned an unexpected response. Please try again.')
   }
-  return payload as DesignResponse
+  const deadline = Date.now() + 300_000
+  while (Date.now() < deadline) {
+    const status = await request<unknown>(`/api/design/jobs/${encodeURIComponent(started.job_id)}`, undefined, 'Could not check design progress.', 'GET')
+    if (status && typeof status === 'object' && 'status' in status) {
+      if (status.status === 'complete' && 'design' in status && 'cached' in status) {
+        return { design: status.design, cached: status.cached } as DesignResponse
+      }
+      if (status.status === 'error') {
+        throw new Error('detail' in status && typeof status.detail === 'string' ? status.detail : 'Could not generate a design. Try again.')
+      }
+      if (status.status !== 'pending') throw new Error('The design service returned an unexpected response. Please try again.')
+    } else {
+      throw new Error('The design service returned an unexpected response. Please try again.')
+    }
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 1000))
+  }
+  throw new Error('Design generation is still running. Keep this page open and try again shortly.')
 }
 
 export async function getIntake(idea: string): Promise<IntakeResponse> {
