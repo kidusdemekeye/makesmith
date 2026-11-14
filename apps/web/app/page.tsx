@@ -40,11 +40,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading) return
-    const stages = ['Researching real parts and datasheets', 'Designing the build', 'Preparing the manual and checks']
+    const stages = [
+      'Researching real parts and datasheets',
+      'Designing the build',
+      'Still working — live research may take a minute or more on Render’s free service. Keep this tab open.',
+    ]
     let index = 0
     const timer = window.setInterval(() => {
-      index = Math.min(index + 1, stages.length - 1)
+      index += 1
       setGenerationStage(stages[index])
+      if (index === stages.length - 1) window.clearInterval(timer)
     }, 1800)
     return () => window.clearInterval(timer)
   }, [loading])

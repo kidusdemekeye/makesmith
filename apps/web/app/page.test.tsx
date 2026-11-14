@@ -177,6 +177,7 @@ describe('Makesmith workspace', () => {
     await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
     expect(screen.getByText('Researching real parts and datasheets')).toBeTruthy()
     expect(await screen.findByText('Designing the build', {}, { timeout: 3000 })).toBeTruthy()
+    expect(await screen.findByText(/Still working — live research may take a minute or more/, {}, { timeout: 3000 })).toBeTruthy()
     await act(async () => { finishDesign?.(sample); await Promise.resolve() })
     expect(await screen.findByRole('heading', { name: 'A self-watering indoor garden' })).toBeTruthy()
   })
