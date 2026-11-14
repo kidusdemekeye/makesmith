@@ -1,11 +1,12 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { Answers, compileCad, getIntake, IntakeResponse, designIdea, DesignResponse, CadResponse } from '../lib/api'
+import { Answers, compileCad, getIntake, IntakeResponse, designIdea, DesignResponse, CadResponse, runChecks, ChecksResponse } from '../lib/api'
 import { RESULT_TABS, ResultTabId } from '../lib/tabs'
 import ModelViewer from '../components/ModelViewer'
 import PartsList from '../components/PartsList'
 import BuildManual from '../components/BuildManual'
+import ChecksPanel from '../components/ChecksPanel'
 
 const PLACEHOLDERS: Record<Exclude<ResultTabId, 'design'>, { eyebrow: string; title: string; description: string }> = {
   parts: { eyebrow: 'NEXT IN THE WORKFLOW', title: 'Parts grounded in real sources', description: 'Exact components, specifications, and search links will be collected here after research is added.' },
@@ -27,6 +28,9 @@ export default function Home() {
   const [cadResult, setCadResult] = useState<CadResponse | null>(null)
   const [cadLoading, setCadLoading] = useState(false)
   const [cadError, setCadError] = useState('')
+  const [checksResult, setChecksResult] = useState<ChecksResponse | null>(null)
+  const [checksLoading, setChecksLoading] = useState(false)
+  const [checksError, setChecksError] = useState('')
   const [answers, setAnswers] = useState<Answers>({})
   const [loading, setLoading] = useState(false)
   const [generationStage, setGenerationStage] = useState('')
@@ -47,6 +51,7 @@ export default function Home() {
     setLoading(true)
     setError('')
     setResult(null)
+    setChecksResult(null)
     setIntake(null)
     try {
       const checked = await getIntake(candidate)
@@ -75,6 +80,7 @@ export default function Home() {
     setLoading(true)
     setError('')
     setGenerationStage('Researching real parts and datasheets')
+    setChecksResult(null)
     setActiveTab('design')
     try {
       setResult(await designIdea(candidate, answers))
@@ -102,6 +108,19 @@ export default function Home() {
       setCadError(caught instanceof Error ? caught.message : 'Could not compile custom parts. Try again.')
     } finally {
       setCadLoading(false)
+    }
+  }
+
+  async function calculateChecks() {
+    if (!design) return
+    setChecksLoading(true)
+    setChecksError('')
+    try {
+      setChecksResult(await runChecks(design))
+    } catch (caught) {
+      setChecksError(caught instanceof Error ? caught.message : 'Could not calculate engineering checks. Try again.')
+    } finally {
+      setChecksLoading(false)
     }
   }
 
@@ -210,6 +229,12 @@ export default function Home() {
                 {cadError && <p className="error-message" role="alert">{cadError}</p>}
                 {cadResult && !cadResult.models.length && <p className="empty-detail">This design has no custom printable parts. Its purchased parts are listed in the Parts tab.</p>}
                 <ModelViewer models={cadResult?.models ?? []} />
+              </div>
+            ) : activeTab === 'checks' && design ? (
+              <div className="checks-content">
+                <div className="design-title-row"><div><div className="eyebrow"><span>ENGINEERING REVIEW</span></div><h3>Transparent checks from the design data</h3></div><button className="primary-button" type="button" onClick={() => void calculateChecks()} disabled={checksLoading}>{checksLoading ? <><span className="spinner" /> Calculating…</> : <>Run engineering checks <span aria-hidden="true">↗</span></>}</button></div>
+                {checksError && <p className="error-message" role="alert">{checksError}</p>}
+                {checksResult ? <ChecksPanel checks={checksResult.checks} /> : <p className="empty-detail">Run the checks to see the power budget, battery estimate, total weight, fit, and simple strength review. Missing measurements will stay marked unknown.</p>}
               </div>
             ) : (
               <div className="placeholder-workspace"><div className="placeholder-art" aria-hidden="true"><span className="placeholder-ring" /><span className="placeholder-center">{RESULT_TABS.find((tab) => tab.id === activeTab)?.number}</span></div><div className="placeholder-copy"><div className="eyebrow"><span>{PLACEHOLDERS[activeTab].eyebrow}</span></div><h3>{PLACEHOLDERS[activeTab].title}</h3><p>{PLACEHOLDERS[activeTab].description}</p><span className="coming-note"><span className="status-dot" /> WORKSPACE READY TO GROW</span></div></div>

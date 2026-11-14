@@ -53,6 +53,12 @@ class ApiRouteTests(unittest.TestCase):
             self.assertEqual(main.create_cad(main.CadRequest(design={"custom_parts": []})), expected)
         compile_design.assert_called_once_with({"custom_parts": []})
 
+    def test_checks_route_returns_deterministic_check_results(self):
+        expected = {"checks": []}
+        with patch.object(main.checks_service, "calculate", return_value=expected) as calculate:
+            self.assertEqual(main.create_checks(main.ChecksRequest(design={"engineering": {}})), expected)
+        calculate.assert_called_once_with({"engineering": {}})
+
 
 if __name__ == "__main__":
     unittest.main()

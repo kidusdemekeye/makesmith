@@ -19,6 +19,14 @@ export type DesignResult = {
   custom_parts: Array<{ name: string; purpose: string; cadquery_code: string; dimensions: string }>
   manual: Array<{ number: number; title: string; parts: string[]; tools: string[]; action: string; reason: string; mistakes: string[] }>
   assumptions: string[]
+  engineering: {
+    battery_capacity_mah: number | null
+    supply_power_w: number | null
+    consumers: Array<{ name: string; voltage_v: number | null; current_a: number | null; power_w: number | null }>
+    parts: Array<{ name: string; quantity: number; mass_g: number | null; dimensions_mm: Array<number | null> | null }>
+    enclosure_mm: Array<number | null> | null
+    strength: Array<{ name: string; load_n: number | null; cross_section_mm2: number | null; allowable_stress_mpa: number | null }>
+  }
 }
 
 export type DesignResponse = { design: DesignResult; cached: boolean }
@@ -27,6 +35,8 @@ export type IntakeQuestion = { id: keyof Answers; label: string; default: string
 export type IntakeResponse = { feasibility: 'feasible' | 'needs_clarification' | 'impossible' | 'unsafe'; explanation: string; alternatives: string[]; questions: IntakeQuestion[] }
 export type CadModel = { name: string; purpose: string; dimensions: string; stl_base64: string }
 export type CadResponse = { models: CadModel[]; assembly: string[] }
+export type CheckResult = { id: string; label: string; status: 'pass' | 'warning' | 'unknown'; result: Record<string, unknown> | null; reason: string; assumptions: string[] }
+export type ChecksResponse = { checks: CheckResult[] }
 
 function apiBaseUrl() {
   const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '')
@@ -87,5 +97,14 @@ export async function compileCad(design: DesignResult): Promise<CadResponse> {
     throw new Error('The CAD service returned an unexpected response. Please try again.')
   }
   return payload as CadResponse
+}
+
+
+export async function runChecks(design: DesignResult): Promise<ChecksResponse> {
+  const payload = await request<unknown>('/api/checks', { design }, 'Could not calculate engineering checks. Try again.')
+  if (!payload || typeof payload !== 'object' || !('checks' in payload) || !Array.isArray(payload.checks)) {
+    throw new Error('The checks service returned an unexpected response. Please try again.')
+  }
+  return payload as ChecksResponse
 }
 

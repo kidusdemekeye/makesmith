@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Home from './page'
-import { compileCad, getIntake, designIdea, DesignResponse, IntakeResponse } from '../lib/api'
+import { compileCad, getIntake, designIdea, DesignResponse, IntakeResponse, runChecks } from '../lib/api'
+import type { ChecksResponse } from '../lib/api'
 
-vi.mock('../lib/api', () => ({ compileCad: vi.fn(), getIntake: vi.fn(), designIdea: vi.fn() }))
+vi.mock('../lib/api', () => ({ compileCad: vi.fn(), getIntake: vi.fn(), designIdea: vi.fn(), runChecks: vi.fn() }))
 
 const sample: DesignResponse = {
   design: {
@@ -17,6 +18,7 @@ const sample: DesignResponse = {
     power: { source: '', voltage: '', current: '', capacity: '', estimated_runtime: '' },
     dimensions: { width: '', height: '', depth: '', units: '' },
     research: [{ title: 'Probe datasheet', url: 'https://example.com/probe', snippet: 'Capacitive sensor datasheet.' }], custom_parts: [], manual: [{ number: 1, title: 'Mount the probe', parts: ['Moisture probe'], tools: ['Small screwdriver'], action: 'Secure the probe above the soil.', reason: 'This keeps the electronics dry.', mistakes: ['Do not bury the circuit board.'] }], assumptions: [],
+    engineering: { battery_capacity_mah: null, supply_power_w: null, consumers: [], parts: [], enclosure_mm: null, strength: [] },
   },
   cached: false,
 }
@@ -34,6 +36,7 @@ beforeEach(() => {
   vi.mocked(getIntake).mockReset().mockResolvedValue(intake)
   vi.mocked(designIdea).mockReset()
   vi.mocked(compileCad).mockReset()
+  vi.mocked(runChecks).mockReset()
 })
 
 describe('Makesmith workspace', () => {
@@ -128,5 +131,23 @@ describe('Makesmith workspace', () => {
     await user.click(screen.getByRole('tab', { name: /Manual/ }))
     expect(screen.getByRole('heading', { name: '1. Mount the probe' })).toBeTruthy()
     expect(screen.getByText('Do not bury the circuit board.')).toBeTruthy()
+  })
+
+  it('runs deterministic checks from the same design and shows unknown data honestly', async () => {
+    const user = userEvent.setup()
+    const checks: ChecksResponse = { checks: [{ id: 'power_budget', label: 'Power budget', status: 'unknown', result: null, reason: 'Need rated power.', assumptions: ['No ratings are guessed.'] }] }
+    vi.mocked(designIdea).mockResolvedValue(sample)
+    vi.mocked(runChecks).mockResolvedValue(checks)
+    render(<Home />)
+    await user.type(screen.getByRole('textbox', { name: 'Describe your hardware idea' }), 'A compact indoor garden')
+    await user.click(screen.getByRole('button', { name: /Check my idea/ }))
+    await screen.findByRole('heading', { name: 'A few details' })
+    await user.click(screen.getByRole('button', { name: /Use these defaults/ }))
+    await screen.findByRole('heading', { name: 'A self-watering indoor garden' })
+    await user.click(screen.getByRole('tab', { name: /Checks/ }))
+    await user.click(screen.getByRole('button', { name: 'Run engineering checks' }))
+    expect(await screen.findByText('Need rated power.')).toBeTruthy()
+    expect(screen.getByText('No ratings are guessed.')).toBeTruthy()
+    expect(runChecks).toHaveBeenCalledWith(sample.design)
   })
 })

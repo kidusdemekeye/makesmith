@@ -8,6 +8,7 @@ from typing import Optional
 from .design import DesignError, DesignService
 from .intake import IntakeError, IntakeService
 from .cad import CadError, CadService
+from .checks import ChecksService
 
 app = FastAPI(title="Makesmith API", version="0.1.0")
 app.add_middleware(
@@ -19,6 +20,7 @@ app.add_middleware(
 service = DesignService()
 intake_service = IntakeService()
 cad_service = CadService()
+checks_service = ChecksService()
 
 
 class DesignRequest(BaseModel):
@@ -45,6 +47,10 @@ class IntakeRequest(BaseModel):
 
 
 class CadRequest(BaseModel):
+    design: dict
+
+
+class ChecksRequest(BaseModel):
     design: dict
 
 
@@ -76,3 +82,11 @@ def create_cad(request: CadRequest):
         return cad_service.compile_design(request.design)
     except CadError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
+@app.post("/api/checks")
+def create_checks(request: ChecksRequest):
+    try:
+        return checks_service.calculate(request.design)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))

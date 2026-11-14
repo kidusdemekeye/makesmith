@@ -73,6 +73,12 @@ class DesignServiceTests(unittest.TestCase):
         self.assertIn("cq.Workplane", prompt)
         self.assertIn("literal numeric or short string arguments only", prompt)
 
+    def test_returns_machine_readable_engineering_inputs_from_the_single_design(self):
+        generated = {"summary": "A compact monitor", "components": [], "parts": [], "connections": [], "power": {}, "dimensions": {},
+                     "engineering": {"battery_capacity_mah": 1000, "supply_power_w": 5, "consumers": [], "parts": [], "enclosure_mm": [30, 20, 10], "strength": []}}
+        self.transport.return_value = {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated)}]}]}
+        self.assertEqual(self.service.design("Build a monitor")["engineering"], generated["engineering"])
+
     def test_includes_only_cited_http_sources_and_build_artifacts(self):
         generated = {
             "summary": "A compact monitor", "components": [],
