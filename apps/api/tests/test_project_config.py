@@ -32,6 +32,10 @@ class ProjectConfigTests(unittest.TestCase):
         self.assertIn("uvicorn app.main:app", docker)
         self.assertIn('"framework": "nextjs"', vercel)
 
+    def test_api_image_installs_cadquery_runtime_shared_libraries(self):
+        docker = (ROOT / "apps/api/Dockerfile").read_text()
+        self.assertIn("libgl1", docker)
+
     def test_gitignore_excludes_local_keys_builds_and_toolchains(self):
         gitignore = (ROOT / ".gitignore").read_text()
         for entry in (".env", ".venv/", ".tools/", "node_modules/", ".next/", "__pycache__/"):
