@@ -109,16 +109,20 @@ class CadServiceTests(unittest.TestCase):
 
     def test_repairs_compile_failure_at_most_three_attempts(self):
         attempts = []
+        repair_contexts = []
         def compiler(code, **kwargs):
             attempts.append(code)
             if len(attempts) < 3:
                 raise CadError("CadQuery could not compile the shape.")
             return b"fixed"
         def repair(code, error, name):
+            repair_contexts.append(error)
             return 'import cadquery as cq\nresult = cq.Workplane().box(1, 1, 1)'
         service = CadService(compiler=compiler, generator=repair, verifier=matching_geometry)
         result = service.compile_design({"custom_parts": [{"name": "Cap", "purpose": "Cover", "cadquery_code": "import cadquery as cq\nresult = cq.Workplane().box(1, 1, 1)", "dimensions": "1 mm"}]})
         self.assertEqual(len(attempts), 3)
+        self.assertIn("purpose: Cover", repair_contexts[0])
+        self.assertIn("dimensions: 1 mm", repair_contexts[0])
         self.assertEqual(base64.b64decode(result["models"][0]["stl_base64"]), b"fixed")
 
     def test_stops_after_three_failed_compile_attempts(self):
@@ -202,6 +206,20 @@ class CadServiceTests(unittest.TestCase):
         self.assertEqual(service._verify_with_openai(part, source), (False, "The box has no cavity."))
         self.assertEqual(service._verify_with_openai(part, source), (False, "The box has no cavity."))
         self.assertEqual(service._request_openai.call_count, 1)
+
+    def test_does_not_compile_after_geometry_review_exhausts_the_cad_time_budget(self):
+        import time
+        from unittest.mock import patch
+        compiler = Mock(return_value=b"LATE-STL")
+        def slow_review(part, source):
+            time.sleep(0.02)
+            return True, ""
+        service = CadService(compiler=compiler, verifier=slow_review)
+        part = {"name": "Bracket", "purpose": "Mount a board", "cadquery_code": 'import cadquery as cq\nresult = cq.Workplane().box(2, 3, 4)'}
+        with patch("apps.api.app.cad.MAX_DESIGN_CAD_SECONDS", 0.01):
+            with self.assertRaises(CadError):
+                service.compile_design({"custom_parts": [part]})
+        compiler.assert_not_called()
 
 
 if __name__ == "__main__":

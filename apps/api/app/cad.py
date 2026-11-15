@@ -270,6 +270,9 @@ class CadService:
                     failure = error
                 else:
                     matches_description, issue = self.verifier(part, code)
+                    remaining_seconds = MAX_DESIGN_CAD_SECONDS - (time.monotonic() - started)
+                    if remaining_seconds <= 0:
+                        raise CadError("The CAD geometry review exceeded the " + str(MAX_DESIGN_CAD_SECONDS) + " second total time limit.", status_code=422)
                     if not isinstance(matches_description, bool) or not isinstance(issue, str):
                         raise CadError("OpenAI returned an unreadable geometry review. No STL was generated.", status_code=502)
                     if not matches_description:
@@ -287,7 +290,8 @@ class CadService:
                             failure = error
                 if attempt == 2 or not self.can_repair:
                     break
-                code = self.generator(code, str(failure), part["name"])
+                description = "Name: " + part["name"] + "; purpose: " + part.get("purpose", "") + "; dimensions: " + part.get("dimensions", "")
+                code = self.generator(code, "Part description (" + description + "). Previous issue: " + str(failure), part["name"])
             if failure:
                 raise failure
         return {"models": models, "assembly": [{"name": model["name"], "position_mm": model["position_mm"], "rotation_deg": model["rotation_deg"]} for model in models]}
